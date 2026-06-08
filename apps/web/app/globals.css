@@ -1,0 +1,40 @@
+:root {
+  --bg: #0a0a0f;
+  --bg-card: #12121a;
+  --bg-card-hover: #1a1a25;
+  --border: #2a2a3a;
+  --border-active: #4a4a6a;
+  --text: #e8e8f0;
+  --text-secondary: #9898b0;
+  --text-muted: #5a5a70;
+  --accent: #6366f1;
+  --accent-dim: #4f46e5;
+  --green: #22c55e;
+  --green-dim: #166534;
+  --yellow: #fbbf24;
+  --yellow-dim: #92400e;
+  --red: #ef4444;
+  --red-dim: #991b1b;
+  --blue: #3b82f6;
+  --blue-dim: #1d4ed8;
+  --mono: "SF Mono", "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-active); }
