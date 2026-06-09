@@ -8,13 +8,20 @@ interface UseSSEResult {
   run: PipelineRun | null;
   gateSummary: string;
   connected: boolean;
+  streamContent: string;
+  streamingAgentId: string | null;
 }
 
-export function useSSE(runId: string | null, initialRun: PipelineRun | null): UseSSEResult {
+export function useSSE(
+  runId: string | null,
+  initialRun: PipelineRun | null,
+): UseSSEResult {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [run, setRun] = useState<PipelineRun | null>(initialRun);
   const [gateSummary, setGateSummary] = useState("");
   const [connected, setConnected] = useState(false);
+  const [streamContent, setStreamContent] = useState("");
+  const [streamingAgentId, setStreamingAgentId] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const refreshRun = useCallback(async () => {
@@ -63,6 +70,20 @@ export function useSSE(runId: string | null, initialRun: PipelineRun | null): Us
     es.addEventListener("run_complete", () => refreshRun());
     es.addEventListener("run_error", () => refreshRun());
 
+    es.addEventListener("agent_stream", (e) => {
+      try {
+        const parsed: SSEEvent = JSON.parse(e.data);
+        if (parsed.type === "agent_stream") {
+          setStreamContent(parsed.data.content);
+          setStreamingAgentId(parsed.data.agentId);
+          if (parsed.data.done) {
+            // Keep final output visible but clear the "live" indicator
+            setStreamingAgentId(null);
+          }
+        }
+      } catch {}
+    });
+
     es.onerror = () => {
       setConnected(false);
     };
@@ -78,5 +99,5 @@ export function useSSE(runId: string | null, initialRun: PipelineRun | null): Us
     if (initialRun) setRun(initialRun);
   }, [initialRun]);
 
-  return { logs, run, gateSummary, connected };
+  return { logs, run, gateSummary, connected, streamContent, streamingAgentId };
 }
