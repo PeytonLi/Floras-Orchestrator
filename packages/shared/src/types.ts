@@ -15,7 +15,23 @@ export type PipelineStage =
   | "error";
 
 /** Agent status */
-export type AgentStatus = "idle" | "running" | "done" | "error" | "blocked";
+export type AgentStatus =
+  | "idle"
+  | "running"
+  | "done"
+  | "error"
+  | "blocked"
+  | "retrying";
+
+/** Per-agent retry and timeout policy */
+export interface AgentConfig {
+  /** Maximum retry attempts after the first failure (0 = no retries) */
+  maxRetries: number;
+  /** Base backoff delay in milliseconds between retry attempts */
+  backoffMs: number;
+  /** Maximum time an agent may run before being considered timed out */
+  timeoutMs: number;
+}
 
 /** Human gate decision */
 export type GateDecision = "pending" | "approved" | "rejected";
@@ -36,6 +52,8 @@ export interface PipelineRun {
   input: RunInput;
   error: string | null;
   agents: Record<string, AgentState>;
+  /** Per-agent retry / timeout configuration (copied from engine defaults at run creation) */
+  agentConfigs: Record<string, AgentConfig>;
 }
 
 export interface RunInput {
@@ -169,9 +187,24 @@ export interface GateEvent {
 // ------------------------------------------------------------
 
 export type SSEEvent =
-  | { type: "stage_change"; data: { runId: string; from: PipelineStage; to: PipelineStage } }
-  | { type: "agent_status"; data: { runId: string; agentId: string; status: AgentStatus } }
+  | {
+      type: "stage_change";
+      data: { runId: string; from: PipelineStage; to: PipelineStage };
+    }
+  | {
+      type: "agent_status";
+      data: { runId: string; agentId: string; status: AgentStatus };
+    }
   | { type: "log"; data: LogEntry }
   | { type: "gate"; data: GateEvent }
   | { type: "run_complete"; data: { runId: string } }
-  | { type: "run_error"; data: { runId: string; error: string } };
+  | { type: "run_error"; data: { runId: string; error: string } }
+  | { type: "run_resumed"; data: { runId: string; from: PipelineStage } }
+  | {
+      type: "agent_retry";
+      data: { runId: string; agentId: string; attempt: number; error: string };
+    }
+  | {
+      type: "agent_stream";
+      data: { runId: string; agentId: string; content: string; done: boolean };
+    };
