@@ -1,6 +1,6 @@
 # Floras Orchestrator
 
-Agent orchestration platform for the Floras climate pipeline � from lead
+Agent orchestration platform for the Floras climate pipeline � from lead
 discovery to personalized presentation. A monorepo built with Turborepo,
 Next.js, and TypeScript, powered by DeepSeek LLM with Neo4j-backed
 persistence.
@@ -8,99 +8,99 @@ persistence.
 ## Architecture
 
 ```
-&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
-&#9474;                      apps/web (Next.js)                     &#9474;
-&#9474;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;   &#9474;
-&#9474;  &#9474; PipelineView &#9474;  &#9474;AgentCards&#9474;  &#9474; LogStream / Results  &#9474;   &#9474;
-&#9474;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;   &#9474;
-&#9474;         &#9474;               &#9474;                    &#9474;               &#9474;
-&#9474;         &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9532;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;               &#9474;
-&#9474;                         &#9474;  SSE (EventSource)                 &#9474;
-&#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9532;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9508;
-&#9474;           packages/orchestrator                              &#9474;
-&#9474;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;   &#9474;
-&#9474;  &#9474;                   PipelineEngine                     &#9474;   &#9474;
-&#9474;  &#9474;                                                     &#9474;   &#9474;
-&#9474;  &#9474;  idle &#8594; discovering &#8594; qualifying &#8594; awaiting_approval &#9474;   &#9474;
-&#9474;  &#9474;        &#8594; estimating &#8594; recommending &#8594; presenting      &#9474;   &#9474;
-&#9474;  &#9474;                        &#8594; complete                    &#9474;   &#9474;
-&#9474;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;   &#9474;
-&#9474;         &#9474;              &#9474;              &#9474;                      &#9474;
-&#9474;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488; &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488; &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;         &#9474;
-&#9474;  &#9474; Sales Intel &#9474; &#9474;CO2 Est.   &#9474; &#9474; Project Advisor &#9474;  ...    &#9474;
-&#9474;  &#9474;  (LLM/Stub) &#9474; &#9474; (LLM/Stub)&#9474; &#9474;   (LLM/Stub)    &#9474;         &#9474;
-&#9474;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496; &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496; &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;         &#9474;
-&#9474;         &#9474;              &#9474;              &#9474;                      &#9474;
-&#9474;         &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9532;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;                      &#9474;
-&#9474;                        &#9474;                                     &#9474;
-&#9500;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9532;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9508;
-&#9474;              packages/shared                                 &#9474;
-&#9474;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;  &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;    &#9474;
-&#9474;  &#9474;  Types   &#9474;  &#9474;  Zod     &#9474;  &#9474;  Neo4j   &#9474;  &#9474; EventBus &#9474;    &#9474;
-&#9474;  &#9474; Pipeline &#9474;  &#9474; Schemas  &#9474;  &#9474; Client   &#9474;  &#9474;  (SSE)   &#9474;    &#9474;
-&#9474;  &#9474; Context  &#9474;  &#9474; (API)    &#9474;  &#9474; Run/Log  &#9474;  &#9474; pub/sub  &#9474;    &#9474;
-&#9474;  &#9474; Domain   &#9474;  &#9474;          &#9474;  &#9474; Domain   &#9474;  &#9474;          &#9474;    &#9474;
-&#9474;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;  &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;    &#9474;
-&#9474;                                   &#9474;                         &#9474;
-&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9532;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
-                                    &#9474;
-                              &#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;
-                              &#9474;   Neo4j   &#9474;
-                              &#9474;  Graph DB &#9474;
-                              &#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9496;
+┌─────────────────────────────────────────────────────────────┐
+│                      apps/web (Next.js)                     │
+│  ┌─────────────┐  ┌──────────┐  ┌──────────────────────┐   │
+│  │ PipelineView │  │AgentCards│  │ LogStream / Results  │   │
+│  └──────┬───────┘  └────┬─────┘  └──────────┬───────────┘   │
+│         │               │                    │               │
+│         └───────────────┼────────────────────┘               │
+│                         │  SSE (EventSource)                 │
+├─────────────────────────┼───────────────────────────────────┤
+│           packages/orchestrator                              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │                   PipelineEngine                     │   │
+│  │                                                     │   │
+│  │  idle → discovering → qualifying → awaiting_approval │   │
+│  │        → estimating → recommending → presenting      │   │
+│  │                        → complete                    │   │
+│  └──────────────────────────────────────────────────────┘   │
+│         │              │              │                      │
+│  ┌──────▼──────┐ ┌─────▼─────┐ ┌──────▼──────────┐         │
+│  │ Sales Intel │ │CO2 Est.   │ │ Project Advisor │  ...    │
+│  │  (LLM/Stub) │ │ (LLM/Stub)│ │   (LLM/Stub)    │         │
+│  └──────┬──────┘ └─────┬─────┘ └──────┬──────────┘         │
+│         │              │              │                      │
+│         └──────────────┼──────────────┘                      │
+│                        │                                     │
+├────────────────────────┼─────────────────────────────────────┤
+│              packages/shared                                 │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+│  │  Types   │  │  Zod     │  │  Neo4j   │  │ EventBus │    │
+│  │ Pipeline │  │ Schemas  │  │ Client   │  │  (SSE)   │    │
+│  │ Context  │  │ (API)    │  │ Run/Log  │  │ pub/sub  │    │
+│  │ Domain   │  │          │  │ Domain   │  │          │    │
+│  └──────────┘  └──────────┘  └────┬─────┘  └──────────┘    │
+│                                   │                         │
+└───────────────────────────────────┼─────────────────────────┘
+                                    │
+                              ┌─────▼─────┐
+                              │   Neo4j   │
+                              │  Graph DB │
+                              └───────────┘
 ```
 
 ### Monorepo structure
 
 ```
 Floras-Orchestrator/
-&#9500;&#9472;&#9472; apps/
-&#9474;   &#9492;&#9472;&#9472; web/                     # Next.js dashboard
-&#9474;       &#9492;&#9472;&#9472; app/
-&#9474;           &#9500;&#9472;&#9472; api/runs/        # REST API (create, get, approve)
-&#9474;           &#9500;&#9472;&#9472; components/      # PipelineView, AgentCards, LogStream, etc.
-&#9474;           &#9500;&#9472;&#9472; hooks/           # useSSE (EventSource streaming)
-&#9474;           &#9500;&#9472;&#9472; demoData.ts      # Static demo dataset
-&#9474;           &#9500;&#9472;&#9472; page.tsx         # Dashboard entry point
-&#9474;           &#9492;&#9472;&#9472; layout.tsx       # Root layout
-&#9500;&#9472;&#9472; packages/
-&#9474;   &#9500;&#9472;&#9472; orchestrator/            # Pipeline engine + agents
-&#9474;   &#9474;   &#9492;&#9472;&#9472; src/
-&#9474;   &#9474;       &#9500;&#9472;&#9472; engine.ts        # State machine, retry, resume, gates
-&#9474;   &#9474;       &#9500;&#9472;&#9472; llm.ts           # DeepSeek/OpenAI client factory
-&#9474;   &#9474;       &#9500;&#9472;&#9472; logger.ts        # Structured logger (SSE + Neo4j + stdout)
-&#9474;   &#9474;       &#9492;&#9472;&#9472; agents/
-&#9474;   &#9474;           &#9500;&#9472;&#9472; base-agent.ts        # FlorasAgent interface
-&#9474;   &#9474;           &#9500;&#9472;&#9472; base-llm-agent.ts    # LLM agent with streaming
-&#9474;   &#9474;           &#9500;&#9472;&#9472; schemas.ts           # Zod output schemas
-&#9474;   &#9474;           &#9500;&#9472;&#9472; sales-intel*.ts      # Lead discovery + qualification
-&#9474;   &#9474;           &#9500;&#9472;&#9472; co2-estimator*.ts    # Carbon footprint estimation
-&#9474;   &#9474;           &#9500;&#9472;&#9472; project-advisor*.ts  # Climate project recommendations
-&#9474;   &#9474;           &#9492;&#9472;&#9472; design-system*.ts    # Presentation/email/one-pager gen
-&#9474;   &#9500;&#9472;&#9472; shared/                  # Types, Neo4j client, EventBus
-&#9474;   &#9474;   &#9492;&#9472;&#9472; src/
-&#9474;   &#9474;       &#9500;&#9472;&#9472; types.ts         # PipelineRun, PipelineContext, domain models
-&#9474;   &#9474;       &#9500;&#9472;&#9472; schemas.ts       # Zod validation for API inputs
-&#9474;   &#9474;       &#9500;&#9472;&#9472; neo4j.ts         # Graph DB persistence layer
-&#9474;   &#9474;       &#9492;&#9472;&#9472; events.ts        # In-process pub/sub for SSE
-&#9474;   &#9492;&#9472;&#9472; ui/                      # Shared UI package (placeholder)
-&#9500;&#9472;&#9472; .env.example                 # Required environment variables
-&#9500;&#9472;&#9472; turbo.json                   # Turborepo pipeline config
-&#9500;&#9472;&#9472; pnpm-workspace.yaml          # pnpm workspace definition
-&#9492;&#9472;&#9472; tsconfig.base.json           # Shared TypeScript config
+├── apps/
+│   └── web/                     # Next.js dashboard
+│       └── app/
+│           ├── api/runs/        # REST API (create, get, approve)
+│           ├── components/      # PipelineView, AgentCards, LogStream, etc.
+│           ├── hooks/           # useSSE (EventSource streaming)
+│           ├── demoData.ts      # Static demo dataset
+│           ├── page.tsx         # Dashboard entry point
+│           └── layout.tsx       # Root layout
+├── packages/
+│   ├── orchestrator/            # Pipeline engine + agents
+│   │   └── src/
+│   │       ├── engine.ts        # State machine, retry, resume, gates
+│   │       ├── llm.ts           # DeepSeek/OpenAI client factory
+│   │       ├── logger.ts        # Structured logger (SSE + Neo4j + stdout)
+│   │       └── agents/
+│   │           ├── base-agent.ts        # FlorasAgent interface
+│   │           ├── base-llm-agent.ts    # LLM agent with streaming
+│   │           ├── schemas.ts           # Zod output schemas
+│   │           ├── sales-intel*.ts      # Lead discovery + qualification
+│   │           ├── co2-estimator*.ts    # Carbon footprint estimation
+│   │           ├── project-advisor*.ts  # Climate project recommendations
+│   │           └── design-system*.ts    # Presentation/email/one-pager gen
+│   ├── shared/                  # Types, Neo4j client, EventBus
+│   │   └── src/
+│   │       ├── types.ts         # PipelineRun, PipelineContext, domain models
+│   │       ├── schemas.ts       # Zod validation for API inputs
+│   │       ├── neo4j.ts         # Graph DB persistence layer
+│   │       └── events.ts        # In-process pub/sub for SSE
+│   └── ui/                      # Shared UI package (placeholder)
+├── .env.example                 # Required environment variables
+├── turbo.json                   # Turborepo pipeline config
+├── pnpm-workspace.yaml          # pnpm workspace definition
+└── tsconfig.base.json           # Shared TypeScript config
 ```
 
 ## Pipeline Stages
 
 | Stage | Agent | Description |
 |---|---|---|
-| `discovering` | Sales Intelligence | Discovers 3�5 leads matching target description |
-| `qualifying` | Sales Intelligence | Scores leads 0�100 with weighted qualification factors |
+| `discovering` | Sales Intelligence | Discovers 3�5 leads matching target description |
+| `qualifying` | Sales Intelligence | Scores leads 0�100 with weighted qualification factors |
 | `awaiting_approval` | **Human Gate** | User reviews qualified leads, approves or rejects |
 | `estimating` | CO2 Estimator | Estimates annual carbon footprint per lead (Scope 1/2/3) |
 | `recommending` | Project Advisor | Recommends Floras climate projects matched to each lead |
 | `presenting` | Design System | Generates presentation outline, email template, one-pager |
-| `complete` | � | Pipeline finished successfully |
+| `complete` | � | Pipeline finished successfully |
 
 ## How Agents Communicate
 
@@ -136,12 +136,12 @@ pipeline works offline for development and demo purposes.
 
 ### Detection (three layers)
 
-1. **Agent-level** � `BaseAgent.run()` wraps `execute()` in try/catch.
+1. **Agent-level** � `BaseAgent.run()` wraps `execute()` in try/catch.
    `BaseLLMAgent` additionally validates the LLM's JSON output against a Zod
    schema.
-2. **Engine retry loop** � `runAgentWithRetry()` retries up to `maxRetries`
+2. **Engine retry loop** � `runAgentWithRetry()` retries up to `maxRetries`
    (default 2) with linear backoff, plus a `Promise.race` timeout per attempt.
-3. **Pipeline catch-all** � `executeRun()` has a top-level try/catch that
+3. **Pipeline catch-all** � `executeRun()` has a top-level try/catch that
    transitions to the `error` stage and emits an `run_error` SSE event.
 
 ### Recovery
@@ -169,13 +169,13 @@ flowchart LR
 
 ## Extending with New Agents
 
-Adding an agent requires changes in **four well-defined spots** � no existing
+Adding an agent requires changes in **four well-defined spots** � no existing
 code modifications needed:
 
-1. **Implement `FlorasAgent`** � extend `BaseAgent` or `BaseLLMAgent`
-2. **Add Zod output schema** � in `agents/schemas.ts`
-3. **Register in engine constructor** � add to the `Map<string, FlorasAgent>`
-4. **Wire into the pipeline** � add to `STAGE_AGENTS` and `TRANSITIONS`
+1. **Implement `FlorasAgent`** � extend `BaseAgent` or `BaseLLMAgent`
+2. **Add Zod output schema** � in `agents/schemas.ts`
+3. **Register in engine constructor** � add to the `Map<string, FlorasAgent>`
+4. **Wire into the pipeline** � add to `STAGE_AGENTS` and `TRANSITIONS`
 
 ```typescript
 // Example: adding a Legal Compliance agent
@@ -198,7 +198,7 @@ TRANSITIONS.recommending.push("complying");
 
 - **Node.js** >= 18
 - **pnpm** >= 9 (`npm install -g pnpm`)
-- **Neo4j** (optional � pipeline works in memory-only mode without it)
+- **Neo4j** (optional � pipeline works in memory-only mode without it)
 
 ### Install
 
@@ -215,12 +215,12 @@ cp .env.example .env
 Edit `.env` with your keys:
 
 ```env
-# Neo4j (optional � leave defaults if not using)
+# Neo4j (optional � leave defaults if not using)
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=password
 
-# DeepSeek LLM (optional � stub agents used if disabled or no key)
+# DeepSeek LLM (optional � stub agents used if disabled or no key)
 LLM_ENABLED=true
 LLM_PROVIDER=deepseek
 LLM_API_KEY=sk-your-deepseek-api-key
@@ -230,7 +230,7 @@ LLM_TEMPERATURE=0.3
 LLM_MAX_TOKENS=4000
 ```
 
-The LLM provider is OpenAI-compatible � you can swap DeepSeek for OpenAI,
+The LLM provider is OpenAI-compatible � you can swap DeepSeek for OpenAI,
 Groq, or any compatible API by changing `LLM_BASE_URL` and `LLM_MODEL`.
 
 ### Run
@@ -283,13 +283,13 @@ The dashboard receives these events in real-time via `EventSource`:
 
 ## Design Decisions
 
-**Why Neo4j?** Pipeline data is inherently graph-shaped � leads connect to
+**Why Neo4j?** Pipeline data is inherently graph-shaped � leads connect to
 qualifications, estimates, recommendations, and artifacts. A graph database
 enables queries like "show me all leads with CO2 estimates over 100t whose
 qualification score exceeds 80" in natural Cypher.
 
 **Why SSE not WebSockets?** The dashboard needs unidirectional server-to-client
-updates. SSE is simpler � no handshake protocol, automatic reconnect built into
+updates. SSE is simpler � no handshake protocol, automatic reconnect built into
 EventSource, and the Next.js API route model maps cleanly to `ReadableStream`.
 
 **Why Zod for LLM output?** LLMs return unstructured text. Zod schemas validate
@@ -301,7 +301,7 @@ retry.
 development, demo, and CI. The stub data is realistic enough to verify the
 dashboard UI, state machine transitions, and Neo4j persistence.
 
-**Why human gates?** Qualification is the highest-stakes decision � bad leads
+**Why human gates?** Qualification is the highest-stakes decision � bad leads
 waste downstream LLM calls and could surface inappropriate recommendations.
 The gate design (pending promise resolver) keeps the engine synchronous and
 simple without polling.
