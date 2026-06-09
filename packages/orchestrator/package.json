@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@floras/shared": "workspace:*",
-    "eventemitter3": "^5.0.1"
+    "eventemitter3": "^5.0.1",
+    "openai": "^4.73.0",
+    "zod-to-json-schema": "^3.23.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0"

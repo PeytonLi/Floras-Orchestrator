@@ -1,84 +1,50 @@
-import type { AgentInput, AgentOutput, ProjectRecommendation } from "@floras/shared";
-import type { Logger } from "../logger";
-import { BaseAgent } from "./base-agent";
+import type { AgentInput } from "@floras/shared";
+import { BaseLLMAgent } from "./base-llm-agent";
+import { ProjectAdvisorOutputSchema } from "./schemas";
 
 // ============================================================
 // Project Advisory Agent (Team 3)
-// Recommends climate projects based on customer profile
+// Recommends climate projects via LLM based on customer profile
 // ============================================================
 
-export class ProjectAdvisorAgent extends BaseAgent {
+export class ProjectAdvisorAgent extends BaseLLMAgent {
   readonly id = "project-advisor";
   readonly name = "Project Advisor";
-  readonly description = "Recommends Floras climate projects matched to customer goals";
+  readonly description =
+    "Recommends Floras climate projects matched to customer goals";
+  readonly outputSchema = ProjectAdvisorOutputSchema;
 
-  async execute(input: AgentInput, logger: Logger): Promise<AgentOutput> {
-    const { leads, qualifications } = input.context;
+  readonly systemPrompt = `You are a climate project advisor for Floras, a platform that connects
+enterprises with verified carbon credit and sustainability projects.
 
-    if (leads.length === 0) {
-      return { success: false, data: null, error: "No leads in context to recommend projects for" };
-    }
+Given qualified leads (company name, sector, qualification score, signals),
+recommend 1-3 Floras-compatible projects per lead. Floras' project types:
 
-    logger.info(`Matching projects for ${leads.length} qualified leads`);
+- Reforestation / afforestation (nature-based removal)
+- Regenerative agriculture (soil carbon sequestration)
+- Renewable energy credits (wind, solar)
+- Blue carbon (mangrove, seagrass restoration)
+- Direct air capture (technological removal)
+- Clean cookstove distribution (avoidance + social co-benefits)
+- Biochar / enhanced weathering (durable removal)
 
-    const recommendations: ProjectRecommendation[] = [];
+Match projects to the lead's sector and sustainability profile. For each
+recommendation, provide a projectName, matchScore (0-100), and detailed
+rationale explaining why this project fits that specific company.
 
-    for (const lead of leads) {
-      const qual = qualifications.find((q) => q.leadId === lead.id);
-      if (!qual || qual.score < 50) {
-        logger.debug(`Skipping ${lead.companyName} — score too low`);
-        continue;
-      }
+Return a JSON object with a "recommendations" array.`;
 
-      await sleep(800);
-      logger.info(`Analyzing project fit for ${lead.companyName}`);
+  buildUserMessage(input: AgentInput): string {
+    const leads = input.context.leads
+      .map((l) => {
+        const qual = input.context.qualifications.find(
+          (q) => q.leadId === l.id,
+        );
+        const score = qual ? ` (qualification score: ${qual.score})` : "";
+        return `- ${l.companyName} | ${l.sector}${score}\n  Signals: ${l.signals.join("; ")}`;
+      })
+      .join("\n\n");
 
-      // Stub: recommend projects based on sector
-      const sectorProjects = getProjectsForSector(lead.sector);
-      for (const project of sectorProjects) {
-        recommendations.push({
-          leadId: lead.id,
-          projectId: project.id,
-          projectName: project.name,
-          matchScore: Math.min(100, qual.score + Math.floor(Math.random() * 10)),
-          rationale: `${project.name} aligns with ${lead.companyName}'s ${lead.sector} operations. ${project.rationale}`,
-        });
-      }
-    }
-
-    logger.info(`Generated ${recommendations.length} project recommendations`);
-
-    return { success: true, data: { recommendations } };
+    return `Qualified leads with profiles:\n\n${leads}\n\nRecommend suitable Floras climate projects for each lead above.`;
   }
-}
-
-interface ProjectTemplate {
-  id: string;
-  name: string;
-  rationale: string;
-}
-
-function getProjectsForSector(sector: string): ProjectTemplate[] {
-  const projects: Record<string, ProjectTemplate[]> = {
-    "Food & Beverage": [
-      { id: "proj_reforest_01", name: "Borneo Reforestation Initiative", rationale: "Directly offsets agricultural supply chain emissions and supports biodiversity in coffee-growing regions." },
-      { id: "proj_regen_02", name: "European Regenerative Agriculture", rationale: "Reduces scope 3 emissions through soil carbon sequestration in ingredient supply chains." },
-    ],
-    Logistics: [
-      { id: "proj_wind_01", name: "North Sea Wind Farm Credits", rationale: "Clean energy credits offset fleet energy consumption during transition period." },
-      { id: "proj_mangrove_02", name: "Coastal Mangrove Restoration", rationale: "Blue carbon project with high sequestration rates, relevant to port-adjacent operations." },
-    ],
-    Manufacturing: [
-      { id: "proj_dac_01", name: "Direct Air Capture — Iceland", rationale: "High-permanence removal suitable for hard-to-abate industrial emissions." },
-      { id: "proj_cookstove_02", name: "Clean Cookstove Distribution", rationale: "Avoidance credits with strong social co-benefits, complements corporate CSR goals." },
-    ],
-  };
-
-  return projects[sector] ?? [
-    { id: "proj_general_01", name: "Verified Carbon Standard Portfolio", rationale: "Diversified portfolio suitable for companies beginning their climate journey." },
-  ];
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
