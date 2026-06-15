@@ -8,11 +8,6 @@ import type {
   PipelineContext,
   GateDecision,
   GateEvent,
-  Lead,
-  Qualification,
-  CO2Estimate,
-  ProjectRecommendation,
-  Artifact,
 } from "@floras/shared";
 import {
   eventBus,
@@ -23,11 +18,13 @@ import {
   listRuns as listRunsFromNeo4j,
   checkConnection,
   ensureIndexes,
+  seedProjectKB,
   saveLeads,
   saveQualifications,
   saveEstimates,
   saveRecommendations,
   saveArtifacts,
+  runStore,
 } from "@floras/shared";
 import { createLogger } from "./logger";
 import { SalesIntelAgent } from "./agents/sales-intel";
@@ -40,6 +37,12 @@ import { CO2EstimatorStubAgent } from "./agents/co2-estimator-stub";
 import { DesignSystemStubAgent } from "./agents/design-system-stub";
 import type { FlorasAgent } from "./agents/base-agent";
 import { loadLLMConfig, createClient } from "./llm";
+import { AgentRegistry, type AgentMeta } from "./registry";
+import {
+  DEFAULT_PIPELINE,
+  BUILTIN_AGENT_META,
+  type PipelineStep,
+} from "./pipeline-def";
 
 // ============================================================
 // Pipeline Engine — state machine that drives runs
@@ -84,15 +87,6 @@ const WORK_STAGES = new Set<PipelineStage>([
   "presenting",
 ]);
 
-/** Map stages to the agent that runs in them */
-const STAGE_AGENTS: Partial<Record<PipelineStage, string>> = {
-  discovering: "sales-intel",
-  qualifying: "sales-intel", // qualification is part of sales intel output
-  estimating: "co2-estimator",
-  recommending: "project-advisor",
-  presenting: "design-system",
-};
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -101,7 +95,9 @@ export class PipelineEngine {
   private runs: Map<string, PipelineRun> = new Map();
   private gateResolvers: Map<string, (decision: GateDecision) => void> =
     new Map();
-  private agents: Map<string, FlorasAgent>;
+  private registry: AgentRegistry;
+  // Copy so runtime additions never mutate the shared default constant
+  private pipeline: PipelineStep[] = [...DEFAULT_PIPELINE];
   private hydrated = false;
   private hydrationPromise: Promise<void> | null = null;
 
@@ -109,6 +105,9 @@ export class PipelineEngine {
     const llmConfig = loadLLMConfig();
     const llmEnabled = llmConfig.enabled && llmConfig.apiKey.length > 0;
 
+    this.registry = new AgentRegistry();
+
+    let builtins: Array<[string, FlorasAgent]>;
     if (llmEnabled) {
       const client = createClient(llmConfig);
       const model = llmConfig.model;
@@ -117,23 +116,27 @@ export class PipelineEngine {
         maxTokens: llmConfig.maxTokens,
       };
 
-      this.agents = new Map<string, FlorasAgent>([
+      builtins = [
         ["sales-intel", new SalesIntelAgent(client, model, llmOptions)],
         ["project-advisor", new ProjectAdvisorAgent(client, model, llmOptions)],
         ["co2-estimator", new CO2EstimatorAgent(client, model, llmOptions)],
         ["design-system", new DesignSystemAgent(client, model, llmOptions)],
-      ]);
+      ];
       console.log(
         `[engine] LLM enabled — using ${llmConfig.provider} (${model})`,
       );
     } else {
-      this.agents = new Map<string, FlorasAgent>([
+      builtins = [
         ["sales-intel", new SalesIntelStubAgent()],
         ["project-advisor", new ProjectAdvisorStubAgent()],
         ["co2-estimator", new CO2EstimatorStubAgent()],
         ["design-system", new DesignSystemStubAgent()],
-      ]);
+      ];
       console.log("[engine] LLM disabled — using stub agents");
+    }
+
+    for (const [id, agent] of builtins) {
+      this.registry.register(BUILTIN_AGENT_META[id], agent);
     }
 
     // Kick off Neo4j connection check + lazy hydration on next tick.
@@ -150,6 +153,10 @@ export class PipelineEngine {
     if (!connected) return;
 
     await ensureIndexes().catch(() => {});
+    // Seed the project catalog knowledge base (idempotent MERGE)
+    await seedProjectKB()
+      .then((n) => n > 0 && console.log(`[engine] Seeded ${n} catalog projects`))
+      .catch(() => {});
     await this.hydrateFromNeo4j();
   }
 
@@ -189,7 +196,7 @@ export class PipelineEngine {
 
     const agentStates: Record<string, AgentState> = {};
     const agentConfigs: Record<string, AgentConfig> = {};
-    for (const [agentId, agent] of this.agents) {
+    for (const agentId of this.registry.ids()) {
       agentStates[agentId] = {
         agentId,
         status: "idle",
@@ -214,7 +221,7 @@ export class PipelineEngine {
     };
 
     this.runs.set(id, run);
-    saveRun(run).catch(() => {}); // best-effort persist
+    this.mirrorRun(run); // best-effort persist to Neo4j + Supabase
     return run;
   }
 
@@ -253,6 +260,49 @@ export class PipelineEngine {
     );
   }
 
+  /**
+   * List runs for the dashboard, reading from the Supabase mirror when
+   * available (so history survives restarts) and merging in‑memory runs
+   * on top (they're freshest). Falls back to in‑memory only.
+   */
+  async listRunsMerged(): Promise<PipelineRun[]> {
+    if (runStore.isAvailable()) {
+      try {
+        const remote = await runStore.listRuns();
+        const merged = new Map<string, PipelineRun>();
+        for (const r of remote) merged.set(r.id, r);
+        for (const r of this.runs.values()) merged.set(r.id, r); // in‑memory wins
+        return Array.from(merged.values()).sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+      } catch {
+        // Supabase unreachable — fall through to in‑memory
+      }
+    }
+    return this.listRuns();
+  }
+
+  /**
+   * Register a new agent at runtime — built-in, external, or test.
+   * Combined with `addStep`, this is the whole "add an agent without
+   * rebuilding the engine" story: no control-flow edits required.
+   */
+  registerAgent(meta: AgentMeta, agent: FlorasAgent): void {
+    this.registry.register(meta, agent);
+  }
+
+  /** Insert a step into the active pipeline (append by default). */
+  addStep(step: PipelineStep, atIndex?: number): void {
+    if (atIndex === undefined) this.pipeline.push(step);
+    else this.pipeline.splice(atIndex, 0, step);
+  }
+
+  /** Read-only view of the active pipeline definition */
+  getPipeline(): readonly PipelineStep[] {
+    return this.pipeline;
+  }
+
   /** Override the retry / timeout policy for a specific agent on a run */
   setAgentConfig(
     runId: string,
@@ -282,7 +332,19 @@ export class PipelineEngine {
     run.updatedAt = new Date().toISOString();
 
     eventBus.emit({ type: "stage_change", data: { runId: run.id, from, to } });
-    await saveRun(run).catch(() => {});
+    this.mirrorRun(run);
+  }
+
+  /** Best-effort persist a run to both durable mirrors (never blocks) */
+  private mirrorRun(run: PipelineRun): void {
+    saveRun(run).catch(() => {});
+    runStore.saveRun(run).catch(() => {});
+  }
+
+  /** Best-effort persist accumulated context to both durable mirrors */
+  private mirrorContext(runId: string, ctx: PipelineContext): void {
+    saveContext(runId, ctx).catch(() => {});
+    runStore.saveContext(runId, ctx).catch(() => {});
   }
 
   /** Update agent state and broadcast */
@@ -347,139 +409,62 @@ export class PipelineEngine {
     };
 
     try {
-      // ============================================================
-      // STAGE 1: Discovering + Qualifying
-      // ============================================================
-      if (shouldRun("discovering")) {
-        log.info(resume ? "Resuming at discovery" : "Pipeline started");
-        await this.transition(run, "discovering");
+      if (!resume) log.info("Pipeline started");
 
-        const salesResult = await this.runAgentWithRetry(
+      // Iterate the declarative pipeline definition. Each step
+      // transitions to its work stage, runs its agent, merges output
+      // into the shared context, optionally passes through
+      // intermediate stages, then optionally blocks on a human gate.
+      for (const step of this.pipeline) {
+        if (!shouldRun(step.stage)) continue;
+
+        await this.transition(run, step.stage);
+
+        const result = await this.runAgentWithRetry(
           run,
-          "sales-intel",
+          step.agentId,
           ctx,
           log,
         );
-
-        const salesData = salesResult.data as {
-          leads: Lead[];
-          qualifications: Qualification[];
-        };
-        ctx.leads = salesData.leads;
-        ctx.qualifications = salesData.qualifications;
-        this.updateAgent(run, "sales-intel", {
+        step.apply(ctx, result.data);
+        this.updateAgent(run, step.agentId, {
           status: "done",
           completedAt: new Date().toISOString(),
-          output: salesData,
+          output: result.data,
         });
+        this.mirrorContext(runId, ctx);
 
-        await saveContext(runId, ctx).catch(() => {});
-        await this.transition(run, "qualifying");
-
-        // Qualifying is implicit — sales intel already scored leads
-        log.info("Qualification complete — moving to approval gate");
-        await this.transition(run, "awaiting_approval");
-
-        // --- HUMAN GATE ---
-        log.info("Awaiting human approval to proceed");
-        const gateSummary = ctx.leads
-          .map((l) => {
-            const q = ctx.qualifications.find((q) => q.leadId === l.id);
-            return `${l.companyName} (score: ${q?.score ?? "N/A"})`;
-          })
-          .join(", ");
-
-        const gateEvent: GateEvent = {
-          runId,
-          stage: "awaiting_approval",
-          decision: "pending",
-          decidedBy: null,
-          decidedAt: null,
-          summary: `Approve ${ctx.leads.length} qualified leads: ${gateSummary}`,
-        };
-        eventBus.emit({ type: "gate", data: gateEvent });
-
-        const decision = await this.waitForGate(runId);
-        if (decision === "rejected") {
-          log.warn("Human rejected — pipeline stopped");
-          await this.transition(run, "error");
-          run.error = "Rejected by human reviewer";
-          await saveRun(run).catch(() => {});
-          return;
+        // Pass through any intermediate stages (e.g. qualifying)
+        for (const stage of step.thenStages ?? []) {
+          await this.transition(run, stage);
         }
 
-        log.info("Human approved — continuing pipeline");
-      }
+        // --- HUMAN GATE (if this step defines one) ---
+        if (step.gate) {
+          log.info("Awaiting human approval to proceed");
+          await this.transition(run, step.gate.stage);
 
-      // ============================================================
-      // STAGE 2: CO2 Estimation
-      // ============================================================
-      if (shouldRun("estimating")) {
-        await this.transition(run, "estimating");
+          const gateEvent: GateEvent = {
+            runId,
+            stage: step.gate.stage,
+            decision: "pending",
+            decidedBy: null,
+            decidedAt: null,
+            summary: step.gate.summarize(ctx),
+          };
+          eventBus.emit({ type: "gate", data: gateEvent });
 
-        const co2Result = await this.runAgentWithRetry(
-          run,
-          "co2-estimator",
-          ctx,
-          log,
-        );
+          const decision = await this.waitForGate(runId);
+          if (decision === "rejected") {
+            log.warn("Human rejected — pipeline stopped");
+            await this.transition(run, "error");
+            run.error = step.gate.rejectionReason;
+            this.mirrorRun(run);
+            return;
+          }
 
-        const co2Data = co2Result.data as { estimates: CO2Estimate[] };
-        ctx.estimates = co2Data.estimates;
-        this.updateAgent(run, "co2-estimator", {
-          status: "done",
-          completedAt: new Date().toISOString(),
-          output: co2Data,
-        });
-        await saveContext(runId, ctx).catch(() => {});
-      }
-
-      // ============================================================
-      // STAGE 3: Project Recommendation
-      // ============================================================
-      if (shouldRun("recommending")) {
-        await this.transition(run, "recommending");
-
-        const advisorResult = await this.runAgentWithRetry(
-          run,
-          "project-advisor",
-          ctx,
-          log,
-        );
-
-        const advisorData = advisorResult.data as {
-          recommendations: ProjectRecommendation[];
-        };
-        ctx.recommendations = advisorData.recommendations;
-        this.updateAgent(run, "project-advisor", {
-          status: "done",
-          completedAt: new Date().toISOString(),
-          output: advisorData,
-        });
-        await saveContext(runId, ctx).catch(() => {});
-      }
-
-      // ============================================================
-      // STAGE 4: Presentation Generation
-      // ============================================================
-      if (shouldRun("presenting")) {
-        await this.transition(run, "presenting");
-
-        const designResult = await this.runAgentWithRetry(
-          run,
-          "design-system",
-          ctx,
-          log,
-        );
-
-        const designData = designResult.data as { artifacts: Artifact[] };
-        ctx.artifacts = designData.artifacts;
-        this.updateAgent(run, "design-system", {
-          status: "done",
-          completedAt: new Date().toISOString(),
-          output: designData,
-        });
-        await saveContext(runId, ctx).catch(() => {});
+          log.info("Human approved — continuing pipeline");
+        }
       }
 
       // ============================================================
@@ -497,6 +482,7 @@ export class PipelineEngine {
         });
       }
       log.error(`Pipeline failed: ${message}`);
+      this.mirrorRun(run);
       eventBus.emit({ type: "run_error", data: { runId, error: message } });
     }
   }
@@ -532,8 +518,9 @@ export class PipelineEngine {
 
     log.info(`Resuming pipeline from stage "${resumeStage}"`);
 
-    // Restore context accumulated before the failure
-    const ctx = await getContext(runId);
+    // Restore context accumulated before the failure.
+    // Single home is the Supabase mirror; fall back to Neo4j, then empty.
+    const ctx = (await runStore.getContext(runId)) ?? (await getContext(runId));
 
     // Transition from error to the target stage, then execute from there
     await this.transition(run, resumeStage);
@@ -569,7 +556,7 @@ export class PipelineEngine {
     ctx: PipelineContext,
     log: ReturnType<typeof createLogger>,
   ): Promise<AgentOutput> {
-    const agent = this.agents.get(agentId)!;
+    const agent = this.registry.getAgent(agentId)!;
     const config = run.agentConfigs[agentId] ?? DEFAULT_AGENT_CONFIG;
     const agentLog = createLogger(run.id, agentId);
     let lastError: string | null = null;
@@ -587,7 +574,12 @@ export class PipelineEngine {
       try {
         const result = await Promise.race([
           agent.execute(
-            { runId: run.id, context: ctx, prompt: run.input.prompt },
+            {
+              runId: run.id,
+              context: ctx,
+              prompt: run.input.prompt,
+              intake: run.input.intake,
+            },
             agentLog,
           ),
           new Promise<AgentOutput>((_, reject) =>

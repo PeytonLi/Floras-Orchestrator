@@ -25,8 +25,11 @@ export abstract class BaseLLMAgent extends BaseAgent {
   /** Zod schema for the agent's structured output */
   abstract readonly outputSchema: ZodType;
 
-  /** Build the user message from the AgentInput context */
-  abstract buildUserMessage(input: AgentInput): string;
+  /**
+   * Build the user message from the AgentInput context.
+   * May be async so agents can pull grounding data (e.g. KB retrieval).
+   */
+  abstract buildUserMessage(input: AgentInput): string | Promise<string>;
 
   async execute(input: AgentInput, logger: Logger): Promise<AgentOutput> {
     const { runId } = input;
@@ -41,7 +44,7 @@ export abstract class BaseLLMAgent extends BaseAgent {
         max_tokens: this.options.maxTokens ?? 4000,
         messages: [
           { role: "system", content: this.systemPrompt },
-          { role: "user", content: this.buildUserMessage(input) },
+          { role: "user", content: await this.buildUserMessage(input) },
         ],
         response_format: {
           type: "json_object",
