@@ -4,10 +4,21 @@ import { z } from "zod";
 // Zod validation schemas for API inputs
 // ============================================================
 
+export const IntakeFormSchema = z.object({
+  geographicRegions: z.array(z.string()).default([]),
+  requiredCertificates: z.array(z.string()).default([]),
+  impactFocus: z.array(z.string()).default([]),
+  projectTypes: z.array(z.string()).default([]),
+  budget: z.number().positive().optional(),
+  budgetCurrency: z.enum(["EUR", "USD"]).optional(),
+  co2TargetTonnes: z.number().positive().optional(),
+});
+
 export const RunInputSchema = z.object({
   prompt: z.string().min(1, "Prompt is required"),
   invoicePath: z.string().optional(),
   customerName: z.string().optional(),
+  intake: IntakeFormSchema.optional(),
 });
 
 export const ApprovalSchema = z.object({
