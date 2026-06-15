@@ -2,6 +2,8 @@
 // Floras Orchestrator — Shared Types
 // ============================================================
 
+import type { IntakeForm } from "./kb/schema";
+
 /** Pipeline stage identifiers */
 export type PipelineStage =
   | "idle"
@@ -63,6 +65,8 @@ export interface RunInput {
   invoicePath?: string;
   /** Optional: customer name for project advisory */
   customerName?: string;
+  /** Optional: structured customer preferences for project recommendation */
+  intake?: IntakeForm;
 }
 
 export interface AgentState {
@@ -85,6 +89,8 @@ export interface AgentInput {
   context: PipelineContext;
   /** The original user prompt */
   prompt: string;
+  /** Optional structured customer intake (used by the project advisor) */
+  intake?: IntakeForm;
 }
 
 export interface AgentOutput {

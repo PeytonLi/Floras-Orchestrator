@@ -247,6 +247,19 @@ export async function ensureIndexes(): Promise<void> {
     await session.run(
       "CREATE INDEX qualification_lead IF NOT EXISTS FOR (q:Qualification) ON (q.leadId)",
     );
+    // Project catalog knowledge base
+    await session.run(
+      "CREATE INDEX project_kb_id IF NOT EXISTS FOR (p:Project) ON (p.id)",
+    );
+    await session.run(
+      "CREATE INDEX certificate_name IF NOT EXISTS FOR (c:Certificate) ON (c.name)",
+    );
+    await session.run(
+      "CREATE INDEX region_name IF NOT EXISTS FOR (r:Region) ON (r.name)",
+    );
+    await session.run(
+      "CREATE INDEX impact_name IF NOT EXISTS FOR (i:ImpactFocus) ON (i.name)",
+    );
   } catch {
     // Indexes may already exist; safe to ignore errors
   } finally {

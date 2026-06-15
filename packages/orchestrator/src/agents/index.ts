@@ -11,5 +11,8 @@ export { SalesIntelStubAgent } from "./sales-intel-stub";
 export { ProjectAdvisorStubAgent } from "./project-advisor-stub";
 export { CO2EstimatorStubAgent } from "./co2-estimator-stub";
 export { DesignSystemStubAgent } from "./design-system-stub";
+// External (remote) agent adapter
+export { ExternalHttpAgent } from "./external-agent";
+export type { ExternalAgentOptions } from "./external-agent";
 // Schemas
 export * as AgentSchemas from "./schemas";

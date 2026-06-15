@@ -59,6 +59,8 @@ export const ProjectAdvisorOutputSchema = z.object({
   recommendations: z.array(
     z.object({
       leadId: z.string().min(1),
+      /** Must be a project id from the grounded candidate list */
+      projectId: z.string().min(1),
       projectName: z.string().min(1),
       matchScore: z.number().min(0).max(100),
       rationale: z.string().min(1),
