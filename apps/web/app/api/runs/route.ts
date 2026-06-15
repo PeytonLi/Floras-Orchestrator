@@ -4,9 +4,9 @@ import { RunInputSchema } from "@floras/shared";
 
 export const dynamic = "force-dynamic";
 
-/** GET /api/runs — list all runs */
+/** GET /api/runs — list all runs (Supabase mirror + in-memory) */
 export async function GET() {
-  const runs = engine.listRuns();
+  const runs = await engine.listRunsMerged();
   return NextResponse.json({ runs });
 }
 

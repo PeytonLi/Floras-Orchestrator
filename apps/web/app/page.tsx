@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { PipelineRun } from "@floras/shared";
+import type { PipelineRun, IntakeForm } from "@floras/shared";
 import { PipelineView } from "./components/PipelineView";
 import { AgentCards } from "./components/AgentCards";
 import { LogStream } from "./components/LogStream";
 import { ApprovalDialog } from "./components/ApprovalDialog";
 import { ResultsPanel } from "./components/ResultsPanel";
+import { IntakeFormSection, emptyIntakeForm } from "./components/IntakeForm";
 import { useSSE } from "./hooks/useSSE";
 import { DEMO_RUN, DEMO_LOGS } from "./demoData";
 
@@ -18,6 +19,8 @@ export default function Dashboard() {
   );
   const [starting, setStarting] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
+  const [intake, setIntake] = useState<IntakeForm>(emptyIntakeForm());
+  const [showIntake, setShowIntake] = useState(false);
 
   const {
     logs: sseLogs,
@@ -53,7 +56,7 @@ export default function Dashboard() {
       const res = await fetch("/api/runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, intake }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -65,7 +68,7 @@ export default function Dashboard() {
     } finally {
       setStarting(false);
     }
-  }, [prompt]);
+  }, [prompt, intake]);
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px" }}>
@@ -173,6 +176,39 @@ export default function Dashboard() {
               {starting ? "Starting..." : "Run Pipeline"}
             </button>
           </div>
+
+          {/* Project preferences intake (Team 3) */}
+          <div style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={() => setShowIntake((s) => !s)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--accent)",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              {showIntake ? "− Hide" : "+ Add"} project preferences (optional)
+            </button>
+            {showIntake && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: 16,
+                  borderRadius: 10,
+                  border: "1px solid var(--border)",
+                  background: "var(--bg)",
+                }}
+              >
+                <IntakeFormSection value={intake} onChange={setIntake} />
+              </div>
+            )}
+          </div>
+
           <div
             style={{
               marginTop: 12,
