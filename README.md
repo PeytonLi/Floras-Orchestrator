@@ -169,28 +169,64 @@ flowchart LR
 
 ## Extending with New Agents
 
-Adding an agent requires changes in **four well-defined spots** � no existing
-code modifications needed:
+The pipeline is driven by an **agent registry** + a **declarative step list**
+(`packages/orchestrator/src/registry.ts`, `pipeline-def.ts`), so adding an agent
+takes **two steps and zero engine edits**:
 
-1. **Implement `FlorasAgent`** � extend `BaseAgent` or `BaseLLMAgent`
-2. **Add Zod output schema** � in `agents/schemas.ts`
-3. **Register in engine constructor** � add to the `Map<string, FlorasAgent>`
-4. **Wire into the pipeline** � add to `STAGE_AGENTS` and `TRANSITIONS`
+1. **Register the agent** � `engine.registerAgent(meta, agent)` where the agent
+   implements `FlorasAgent` (extend `BaseLLMAgent` for an LLM agent, or use
+   `ExternalHttpAgent` to delegate to a remote OpenCode agent).
+2. **Add one step** � `engine.addStep({ id, agentId, stage, apply })` to slot it
+   into the pipeline.
 
 ```typescript
-// Example: adding a Legal Compliance agent
-// 1. Create agents/legal-compliance.ts
-export class LegalComplianceAgent extends BaseLLMAgent { ... }
-
-// 2. Register in engine.ts constructor
-this.agents.set("legal-compliance", new LegalComplianceAgent(...));
-
-// 3. Wire stage mapping
-STAGE_AGENTS["complying"] = "legal-compliance";
-
-// 4. Add transition
-TRANSITIONS.recommending.push("complying");
+// Example: adding a Legal Compliance agent — no engine.ts changes
+engine.registerAgent(
+  { id: "legal-compliance", stage: "recommending", reads: ["leads"], writes: ["artifacts"] },
+  new LegalComplianceAgent(client, model),
+);
+engine.addStep({
+  id: "comply",
+  agentId: "legal-compliance",
+  stage: "recommending",
+  apply: (ctx, data) => { ctx.artifacts.push(...(data as any).artifacts); },
+});
 ```
+
+### Pluggable external agents
+
+Other teams' agents plug in over HTTP via the shared `AgentRequestEnvelope`
+contract (`packages/shared/src/agent-contract.ts`). `ExternalHttpAgent` validates
+the remote's output with the same Zod schema as its internal twin and **falls back
+to the internal agent** when the endpoint is disabled or unreachable — so the
+pipeline never hard-fails on a remote outage.
+
+## Knowledge Base & Intake (Project Advisory)
+
+The Project Advisor is **grounded in a real catalog**, not invented. A structured
+intake form (regions, required certificates, impact focus, project types, budget,
+CO2 target) drives `recommendProjects()` (`packages/shared/src/kb/match.ts`):
+
+1. **Hard constraints** filter the catalog (region, required certificates, type).
+2. **Soft scoring** ranks survivors (impact overlap, budget fit, capacity) with a
+   per-factor breakdown.
+
+The LLM then only **explains/ranks** grounded candidates — it can't hallucinate a
+project. Runs against the Neo4j knowledge graph
+(`(:Project)-[:CERTIFIED_BY|LOCATED_IN|HAS_IMPACT|OF_TYPE]->...`) when available,
+falling back to the in-memory seed catalog (`kb/projects.json`) so the demo works
+offline. The catalog is seeded into Neo4j idempotently on startup.
+
+## Data architecture (polyglot)
+
+The in-memory engine `Map` is **runtime truth**. Both stores are best-effort durable
+mirrors, never on the hot path:
+
+| Store | Role |
+|---|---|
+| **In-memory `Map`** | Runtime truth for active runs |
+| **Supabase Postgres** | Durable operational mirror: runs, the single home for `PipelineContext`, intake forms, artifacts, external-agent registry. Optional (anon, no RLS for the demo). |
+| **Neo4j** | Knowledge graph: project catalog + match traversals, plus cross-run lineage projection. Optional. |
 
 ## Getting Started
 
@@ -219,6 +255,10 @@ Edit `.env` with your keys:
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=password
+
+# Supabase (optional � durable run mirror; leave blank for in-memory only)
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
 
 # DeepSeek LLM (optional � stub agents used if disabled or no key)
 LLM_ENABLED=true
@@ -274,9 +314,11 @@ The dashboard receives these events in real-time via `EventSource`:
 | Layer | Technology |
 |---|---|
 | Frontend | Next.js 14, React 18, TypeScript |
-| Pipeline engine | TypeScript state machine |
+| Pipeline engine | Registry + declarative step list (TypeScript) |
 | LLM | DeepSeek (OpenAI-compatible, swappable) |
-| Persistence | Neo4j (graph DB) with in-memory fallback |
+| Knowledge base | Neo4j graph + in-memory seed catalog |
+| Durable mirror | Supabase Postgres (optional, best-effort) |
+| Persistence | In-memory runtime truth + Neo4j/Supabase mirrors |
 | Validation | Zod (API inputs + LLM outputs) |
 | Realtime | Server-Sent Events (SSE) |
 | Monorepo | Turborepo + pnpm workspaces |
