@@ -8,9 +8,9 @@
     "build": "tsc",
     "lint": "tsc --noEmit"
   },
-  "dependencies": {
-    "@floras/shared": "workspace:*",
-    "react": "^18.3.0"
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",

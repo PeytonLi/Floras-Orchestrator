@@ -14,7 +14,11 @@ export type PipelineStage =
   | "recommending"
   | "presenting"
   | "complete"
-  | "error";
+  | "error"
+  | "parsing"
+  | "calculating"
+  | "transferring"
+  | "confirming";
 
 /** Agent status */
 export type AgentStatus =
@@ -67,6 +71,14 @@ export interface RunInput {
   customerName?: string;
   /** Optional: structured customer preferences for project recommendation */
   intake?: IntakeForm;
+  /** Pipeline mode: discovery (default) or transfer */
+  mode?: PipelineMode;
+  /** Transfer scenario (relevant when mode = "transfer") */
+  scenario?: TransferScenario;
+  /** Optional: pre-parsed invoice data (embed mode or pre-filled) */
+  invoiceData?: InvoiceData;
+  /** Optional: supplier name for transfer pipeline */
+  supplierName?: string;
 }
 
 export interface AgentState {
@@ -105,6 +117,12 @@ export interface PipelineContext {
   estimates: CO2Estimate[];
   recommendations: ProjectRecommendation[];
   artifacts: Artifact[];
+  /** Transfer pipeline: parsed invoice data */
+  invoice?: InvoiceData;
+  /** Transfer pipeline: calculated Floras transfer amount */
+  transferAmount?: TransferAmount;
+  /** Transfer pipeline: recorded ledger events */
+  ledgerEvents?: LedgerEvent[];
 }
 
 // ------------------------------------------------------------
@@ -214,3 +232,52 @@ export type SSEEvent =
       type: "agent_stream";
       data: { runId: string; agentId: string; content: string; done: boolean };
     };
+
+// ============================================================
+// Transfer Pipeline — new types for invoice-based Floras transfers
+// ============================================================
+
+export type PipelineMode = "discovery" | "transfer";
+export type TransferScenario = "b2b" | "self" | "b2c";
+export type CalculationMethod = "percentage" | "detailed";
+
+export interface InvoiceLineItem {
+  description: string;
+  amountEUR: number;
+  estimatedCO2Kg?: number;
+}
+
+export interface InvoiceData {
+  invoiceNumber: string;
+  supplierName: string;
+  customerName: string;
+  totalAmountEUR: number;
+  lineItems: InvoiceLineItem[];
+  calculationMethod: CalculationMethod;
+  percentageRate?: number;
+}
+
+export interface TransferAmount {
+  florasCount: number;
+  co2Kg: number;
+  calculationBreakdown: string;
+  requiresHumanApproval: boolean;
+}
+
+export interface LedgerEvent {
+  id: string;
+  timestamp: string;
+  fromAccount: string;
+  toAccount: string;
+  florasCount: number;
+  co2Kg: number;
+  invoiceRef: string;
+  runId: string;
+}
+
+export interface TransferContext {
+  invoice: InvoiceData | null;
+  transferAmount: TransferAmount | null;
+  ledgerEvents: LedgerEvent[];
+  confirmedAt: string | null;
+}

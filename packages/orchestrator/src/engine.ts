@@ -35,11 +35,15 @@ import { SalesIntelStubAgent } from "./agents/sales-intel-stub";
 import { ProjectAdvisorStubAgent } from "./agents/project-advisor-stub";
 import { CO2EstimatorStubAgent } from "./agents/co2-estimator-stub";
 import { DesignSystemStubAgent } from "./agents/design-system-stub";
+import { InvoiceParserStubAgent } from "./agents/invoice-parser-stub";
+import { CO2FromInvoiceStubAgent } from "./agents/co2-from-invoice-stub";
+import { FlorasTransferStubAgent } from "./agents/floras-transfer-stub";
 import type { FlorasAgent } from "./agents/base-agent";
 import { loadLLMConfig, createClient } from "./llm";
 import { AgentRegistry, type AgentMeta } from "./registry";
 import {
   DEFAULT_PIPELINE,
+  TRANSFER_PIPELINE,
   BUILTIN_AGENT_META,
   type PipelineStep,
 } from "./pipeline-def";
@@ -55,18 +59,33 @@ const DEFAULT_AGENT_CONFIG: AgentConfig = {
   timeoutMs: 30_000,
 };
 
+/** Maximum time (ms) a pipeline run may wait at a human gate before auto-rejecting */
+const GATE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
 /** Valid transitions from each stage */
 const TRANSITIONS: Record<PipelineStage, PipelineStage[]> = {
-  idle: ["discovering"],
+  idle: ["discovering", "parsing"],
   discovering: ["qualifying", "error"],
   qualifying: ["awaiting_approval", "error"],
-  awaiting_approval: ["estimating", "error"],
+  awaiting_approval: ["estimating", "transferring", "error"],
   estimating: ["recommending", "error"],
   recommending: ["presenting", "error"],
   presenting: ["complete", "error"],
+  // Transfer pipeline stages
+  parsing: ["calculating", "error"],
+  calculating: ["awaiting_approval", "transferring", "error"],
+  transferring: ["confirming", "error"],
+  confirming: ["complete", "error"],
   complete: [],
-  // Allow resuming from error into any agent-work stage
-  error: ["idle", "discovering", "estimating", "recommending", "presenting"],
+  error: [
+    "idle",
+    "discovering",
+    "estimating",
+    "recommending",
+    "presenting",
+    "parsing",
+    "calculating",
+  ],
 };
 
 /** Pipeline stages in execution order (used for resume skip logic) */
@@ -77,6 +96,10 @@ const STAGE_ORDER: PipelineStage[] = [
   "estimating",
   "recommending",
   "presenting",
+  "parsing",
+  "calculating",
+  "transferring",
+  "confirming",
 ];
 
 /** Stages that directly execute an agent (vs. gate / no-op transitions) */
@@ -85,6 +108,10 @@ const WORK_STAGES = new Set<PipelineStage>([
   "estimating",
   "recommending",
   "presenting",
+  "parsing",
+  "calculating",
+  "transferring",
+  "confirming",
 ]);
 
 function sleep(ms: number): Promise<void> {
@@ -139,6 +166,36 @@ export class PipelineEngine {
       this.registry.register(BUILTIN_AGENT_META[id], agent);
     }
 
+    // Always register transfer pipeline stubs (LLM versions deferred)
+    const transferStubs: Array<[string, FlorasAgent]> = [
+      ["invoice-parser", new InvoiceParserStubAgent()],
+      ["co2-from-invoice", new CO2FromInvoiceStubAgent()],
+      ["floras-transfer", new FlorasTransferStubAgent()],
+    ];
+    const transferMeta: Record<string, AgentMeta> = {
+      "invoice-parser": {
+        id: "invoice-parser",
+        stage: "parsing",
+        reads: [],
+        writes: ["invoice"],
+      },
+      "co2-from-invoice": {
+        id: "co2-from-invoice",
+        stage: "calculating",
+        reads: ["invoice"],
+        writes: ["transferAmount"],
+      },
+      "floras-transfer": {
+        id: "floras-transfer",
+        stage: "transferring",
+        reads: ["invoice", "transferAmount"],
+        writes: ["ledgerEvents"],
+      },
+    };
+    for (const [id, agent] of transferStubs) {
+      this.registry.register(transferMeta[id], agent);
+    }
+
     // Kick off Neo4j connection check + lazy hydration on next tick.
     // Don't block the constructor — engine works fine in memory-only mode.
     this.hydrationPromise = this.initNeo4j();
@@ -155,7 +212,9 @@ export class PipelineEngine {
     await ensureIndexes().catch(() => {});
     // Seed the project catalog knowledge base (idempotent MERGE)
     await seedProjectKB()
-      .then((n) => n > 0 && console.log(`[engine] Seeded ${n} catalog projects`))
+      .then(
+        (n) => n > 0 && console.log(`[engine] Seeded ${n} catalog projects`),
+      )
       .catch(() => {});
     await this.hydrateFromNeo4j();
   }
@@ -238,7 +297,18 @@ export class PipelineEngine {
     return undefined;
   }
 
-  /** Async read‑through: load a run from Neo4j into the in‑memory cache */
+  /**
+   * Async variant of getRun — awaits the Neo4j read-through on a cache miss.
+   * Use this from API routes where an await is possible.
+   */
+  async getRunAsync(runId: string): Promise<PipelineRun | undefined> {
+    const cached = this.runs.get(runId);
+    if (cached) return cached;
+    await this.fetchAndCacheRun(runId);
+    return this.runs.get(runId);
+  }
+
+  /** Async read-through: load a run from Neo4j into the in‑memory cache */
   private async fetchAndCacheRun(runId: string): Promise<void> {
     try {
       await this.ensureHydrated();
@@ -415,7 +485,10 @@ export class PipelineEngine {
       // transitions to its work stage, runs its agent, merges output
       // into the shared context, optionally passes through
       // intermediate stages, then optionally blocks on a human gate.
-      for (const step of this.pipeline) {
+      const activePipeline =
+        run.input.mode === "transfer" ? TRANSFER_PIPELINE : this.pipeline;
+
+      for (const step of activePipeline) {
         if (!shouldRun(step.stage)) continue;
 
         await this.transition(run, step.stage);
@@ -632,8 +705,20 @@ export class PipelineEngine {
 
   /** Wait for a human gate to be resolved */
   private waitForGate(runId: string): Promise<GateDecision> {
-    return new Promise((resolve) => {
-      this.gateResolvers.set(runId, resolve);
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.gateResolvers.delete(runId);
+        reject(
+          new Error(
+            `Gate for run ${runId} timed out after ${GATE_TIMEOUT_MS / 1000}s`,
+          ),
+        );
+      }, GATE_TIMEOUT_MS);
+
+      this.gateResolvers.set(runId, (decision: GateDecision) => {
+        clearTimeout(timer);
+        resolve(decision);
+      });
     });
   }
 }

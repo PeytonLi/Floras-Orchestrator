@@ -19,6 +19,9 @@ export const RunInputSchema = z.object({
   invoicePath: z.string().optional(),
   customerName: z.string().optional(),
   intake: IntakeFormSchema.optional(),
+  mode: z.enum(["discovery", "transfer"]).optional().default("discovery"),
+  scenario: z.enum(["b2b", "self", "b2c"]).optional().default("b2b"),
+  supplierName: z.string().optional(),
 });
 
 export const ApprovalSchema = z.object({
@@ -37,6 +40,10 @@ export const PipelineStageSchema = z.enum([
   "presenting",
   "complete",
   "error",
+  "parsing",
+  "calculating",
+  "transferring",
+  "confirming",
 ]);
 
 export type RunInputDTO = z.infer<typeof RunInputSchema>;

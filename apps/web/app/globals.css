@@ -1,22 +1,40 @@
 :root {
-  --bg: #0a0a0f;
-  --bg-card: #12121a;
-  --bg-card-hover: #1a1a25;
-  --border: #2a2a3a;
-  --border-active: #4a4a6a;
-  --text: #e8e8f0;
-  --text-secondary: #9898b0;
-  --text-muted: #5a5a70;
-  --accent: #6366f1;
-  --accent-dim: #4f46e5;
-  --green: #22c55e;
-  --green-dim: #166534;
-  --yellow: #fbbf24;
-  --yellow-dim: #92400e;
-  --red: #ef4444;
-  --red-dim: #991b1b;
-  --blue: #3b82f6;
-  --blue-dim: #1d4ed8;
+  /* ── Floras brand palette ── */
+  --color-forest: #3d5e3a;
+  --color-leaf: #4a7c59;
+  --color-olive: #5a6e3a;
+  --color-brand-text: #9c9d65;
+  --color-bg: #f5f5f3;
+  --color-surface: #ffffff;
+  --color-surface-warm: #f9f8f6;
+  --color-surface-sage: #f3f5eb;
+  --color-text: #1a2416;
+  --color-text-muted: #6b7c65;
+  --color-border: #e2e8dd;
+  --color-border-soft: #eceee9;
+  --color-wallet-start: #9c9d65;
+  --color-wallet-end: #3d5e3a;
+  --color-focus: #2d6a4f;
+
+  /* ── Aliases for existing component vars ── */
+  --bg: var(--color-bg);
+  --bg-card: var(--color-surface);
+  --bg-card-hover: var(--color-surface-warm);
+  --border: var(--color-border);
+  --border-active: var(--color-leaf);
+  --text: var(--color-text);
+  --text-secondary: var(--color-text-muted);
+  --text-muted: var(--color-brand-text);
+  --accent: var(--color-leaf);
+  --accent-dim: var(--color-forest);
+  --green: var(--color-leaf);
+  --green-dim: var(--color-forest);
+  --yellow: #b07d2e;
+  --yellow-dim: #7a4e1a;
+  --red: #b83232;
+  --red-dim: #7b1a1a;
+  --blue: var(--color-leaf);
+  --blue-dim: var(--color-forest);
   --mono: "SF Mono", "Cascadia Code", "Fira Code", "JetBrains Mono", monospace;
 }
 
@@ -27,14 +45,13 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  font-family: 'Rubik', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
   min-height: 100vh;
 }
 
-/* Scrollbar styling */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--border-active); }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-leaf); }

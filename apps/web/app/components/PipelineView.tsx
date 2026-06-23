@@ -10,7 +10,7 @@ const STAGES: { id: PipelineStage; label: string; agent: string }[] = [
   { id: "discovering", label: "Discover", agent: "Sales Intel" },
   { id: "qualifying", label: "Qualify", agent: "Sales Intel" },
   { id: "awaiting_approval", label: "Approve", agent: "Human Gate" },
-  { id: "estimating", label: "Estimate", agent: "CO2 Estimator" },
+  { id: "estimating", label: "Estimate", agent: "CO₂ Estimator" },
   { id: "recommending", label: "Recommend", agent: "Project Advisor" },
   { id: "presenting", label: "Present", agent: "Design System" },
   { id: "complete", label: "Complete", agent: "" },
@@ -32,7 +32,7 @@ function getStageStatus(
 
 export function PipelineView({ currentStage }: PipelineViewProps) {
   return (
-    <div style={{ display: "flex", gap: 4, alignItems: "stretch", overflowX: "auto", padding: "8px 0" }}>
+    <div style={{ display: "flex", gap: 4, alignItems: "stretch", overflowX: "auto", padding: "4px 0" }}>
       {STAGES.map((stage, i) => {
         const status = getStageStatus(stage.id, currentStage);
         return (
@@ -43,75 +43,97 @@ export function PipelineView({ currentStage }: PipelineViewProps) {
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "12px 16px",
-                borderRadius: 8,
-                minWidth: 100,
+                padding: "12px 14px",
+                borderRadius: 10,
+                minWidth: 96,
                 border: `1px solid ${
                   status === "active"
-                    ? "var(--accent)"
+                    ? "var(--color-leaf)"
                     : status === "done"
-                    ? "var(--green)"
+                    ? "var(--color-border)"
                     : status === "error"
                     ? "var(--red)"
-                    : "var(--border)"
+                    : "var(--color-border)"
                 }`,
                 background:
                   status === "active"
-                    ? "rgba(99,102,241,0.12)"
+                    ? "var(--color-surface-sage)"
                     : status === "done"
-                    ? "rgba(34,197,94,0.08)"
+                    ? "var(--color-surface-warm)"
                     : status === "error"
-                    ? "rgba(239,68,68,0.08)"
-                    : "var(--bg-card)",
+                    ? "rgba(184,50,50,0.06)"
+                    : "var(--color-bg)",
                 transition: "all 0.3s ease",
               }}
             >
               <div
                 style={{
-                  width: 10,
-                  height: 10,
+                  width: 8,
+                  height: 8,
                   borderRadius: "50%",
                   marginBottom: 6,
                   background:
                     status === "active"
-                      ? "var(--accent)"
+                      ? "var(--color-leaf)"
                       : status === "done"
-                      ? "var(--green)"
+                      ? "var(--color-forest)"
                       : status === "error"
                       ? "var(--red)"
-                      : "var(--text-muted)",
-                  boxShadow: status === "active" ? "0 0 8px var(--accent)" : "none",
+                      : "var(--color-border)",
+                  boxShadow:
+                    status === "active"
+                      ? "0 0 8px rgba(74,124,89,0.5)"
+                      : "none",
                   animation: status === "active" ? "pulse 2s infinite" : "none",
                 }}
               />
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{stage.label}</div>
+              <div
+                style={{
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                  color:
+                    status === "active"
+                      ? "var(--color-forest)"
+                      : status === "done"
+                      ? "var(--color-text-muted)"
+                      : status === "error"
+                      ? "var(--red)"
+                      : "var(--color-text-muted)",
+                }}
+              >
+                {stage.label}
+              </div>
               {stage.agent && (
-                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{stage.agent}</div>
+                <div
+                  style={{
+                    fontSize: "0.65rem",
+                    color: "var(--color-brand-text)",
+                    marginTop: 2,
+                    letterSpacing: "0.03em",
+                  }}
+                >
+                  {stage.agent}
+                </div>
               )}
             </div>
             {i < STAGES.length - 1 && (
               <div
                 style={{
-                  width: 20,
-                  height: 2,
+                  width: 16,
+                  height: 1,
                   background:
                     getStageStatus(STAGES[i + 1].id, currentStage) === "done" ||
                     getStageStatus(stage.id, currentStage) === "done"
-                      ? "var(--green)"
-                      : "var(--border)",
+                      ? "var(--color-leaf)"
+                      : "var(--color-border)",
                   transition: "background 0.3s ease",
+                  flexShrink: 0,
                 }}
               />
             )}
           </div>
         );
       })}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-      `}</style>
     </div>
   );
 }

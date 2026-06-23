@@ -6,9 +6,9 @@ export const dynamic = "force-dynamic";
 /** GET /api/runs/:id — get a single run */
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
-  const run = engine.getRun(params.id);
+  const run = await engine.getRunAsync(params.id);
   if (!run) {
     return NextResponse.json({ error: "Run not found" }, { status: 404 });
   }

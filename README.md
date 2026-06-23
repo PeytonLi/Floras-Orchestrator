@@ -347,3 +347,10 @@ dashboard UI, state machine transitions, and Neo4j persistence.
 waste downstream LLM calls and could surface inappropriate recommendations.
 The gate design (pending promise resolver) keeps the engine synchronous and
 simple without polling.
+
+## Documentation
+
+- [Integration Guide](docs/INTEGRATION.md) — how to plug in external agents
+- [Deployment Guide](docs/DEPLOYMENT.md) — how to deploy to production
+- [Implementation Plans](plans/README.md) — prioritized improvement plans
+- [CLAUDE.md](CLAUDE.md) — orientation for Claude Code

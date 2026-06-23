@@ -33,40 +33,46 @@ export function ApprovalDialog({ run, gateSummary, onDecision }: ApprovalDialogP
   return (
     <div
       style={{
-        background: "rgba(251,191,36,0.06)",
-        border: "1px solid var(--yellow)",
-        borderRadius: 10,
-        padding: 20,
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-leaf)",
+        borderRadius: 16,
+        padding: 24,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <div
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 6,
-            background: "rgba(251,191,36,0.15)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 14,
-          }}
-        >
-          ⏸
-        </div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--yellow)" }}>Human Approval Required</div>
+      <div
+        style={{
+          fontSize: "0.72rem",
+          fontWeight: 700,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: "var(--color-brand-text)",
+          marginBottom: 8,
+        }}
+      >
+        Human approval required
       </div>
 
-      <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16, lineHeight: 1.6 }}>
-        {gateSummary || "Review the qualified leads before proceeding to CO2 estimation and project recommendation."}
+      <div
+        style={{
+          fontSize: "0.875rem",
+          color: "var(--color-text)",
+          marginBottom: 16,
+          lineHeight: 1.6,
+        }}
+      >
+        {gateSummary || "Review the qualified leads before proceeding to CO₂ estimation and project recommendation."}
       </div>
 
-      {/* Show lead summary */}
-      <div style={{ marginBottom: 16 }}>
+      {/* Lead summary */}
+      <div style={{ marginBottom: 20 }}>
         {Object.values(run.agents)
           .filter((a) => a.agentId === "sales-intel" && a.output)
           .map((a) => {
-            const data = a.output as { leads?: Array<{ companyName: string; sector: string }>; qualifications?: Array<{ leadId: string; score: number }> };
+            const data = a.output as {
+              leads?: Array<{ companyName: string; sector: string }>;
+              qualifications?: Array<{ leadId: string; score: number }>;
+            };
             return (data.leads ?? []).map((lead, i) => {
               const qual = (data.qualifications ?? []).find((q) => q.leadId === `lead_${i + 1}`);
               return (
@@ -76,15 +82,34 @@ export function ApprovalDialog({ run, gateSummary, onDecision }: ApprovalDialogP
                     display: "flex",
                     justifyContent: "space-between",
                     padding: "8px 12px",
-                    background: "var(--bg-card)",
-                    borderRadius: 6,
+                    background: "var(--color-surface-warm)",
+                    border: "1px solid var(--color-border-soft)",
+                    borderRadius: 8,
                     marginBottom: 4,
-                    fontSize: 13,
+                    fontSize: "0.875rem",
                   }}
                 >
-                  <span>{lead.companyName}</span>
-                  <span style={{ color: "var(--text-muted)" }}>
-                    {lead.sector} — Score: {qual?.score ?? "?"}
+                  <span style={{ color: "var(--color-text)", fontWeight: 500 }}>
+                    {lead.companyName}
+                  </span>
+                  <span style={{ color: "var(--color-text-muted)" }}>
+                    {lead.sector}
+                    {qual && (
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          fontWeight: 700,
+                          color:
+                            qual.score >= 80
+                              ? "var(--color-forest)"
+                              : qual.score >= 60
+                              ? "var(--yellow)"
+                              : "var(--red)",
+                        }}
+                      >
+                        {qual.score}
+                      </span>
+                    )}
                   </span>
                 </div>
               );
@@ -100,16 +125,16 @@ export function ApprovalDialog({ run, gateSummary, onDecision }: ApprovalDialogP
             padding: "10px 24px",
             borderRadius: 8,
             border: "none",
-            background: "var(--green)",
+            background: loading ? "var(--color-text-muted)" : "var(--color-leaf)",
             color: "#fff",
-            fontSize: 13,
-            fontWeight: 600,
+            fontSize: "0.875rem",
+            fontWeight: 700,
             cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.6 : 1,
-            transition: "opacity 0.2s",
+            fontFamily: "inherit",
+            transition: "background 0.2s",
           }}
         >
-          {loading ? "Processing..." : "Approve & Continue"}
+          {loading ? "Processing..." : "Approve & continue"}
         </button>
         <button
           onClick={() => handleDecision("rejected")}
@@ -120,10 +145,11 @@ export function ApprovalDialog({ run, gateSummary, onDecision }: ApprovalDialogP
             border: "1px solid var(--red)",
             background: "transparent",
             color: "var(--red)",
-            fontSize: 13,
+            fontSize: "0.875rem",
             fontWeight: 600,
             cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.6 : 1,
+            opacity: loading ? 0.5 : 1,
+            fontFamily: "inherit",
           }}
         >
           Reject

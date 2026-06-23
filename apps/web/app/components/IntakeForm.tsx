@@ -33,9 +33,11 @@ interface Props {
 }
 
 const labelStyle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 600,
-  color: "var(--text-secondary)",
+  fontSize: "0.72rem",
+  fontWeight: 700,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: "var(--color-text-muted)",
   marginBottom: 6,
   display: "block",
 };
@@ -44,11 +46,12 @@ const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "8px 12px",
   borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "var(--bg)",
-  color: "var(--text)",
-  fontSize: 13,
+  border: "1px solid var(--color-border)",
+  background: "var(--color-surface)",
+  color: "var(--color-text)",
+  fontSize: "0.875rem",
   outline: "none",
+  fontFamily: "inherit",
 };
 
 export function IntakeFormSection({ value, onChange }: Props) {
@@ -82,10 +85,11 @@ export function IntakeFormSection({ value, onChange }: Props) {
           fontSize: 12,
           cursor: "pointer",
           border: active
-            ? "1px solid var(--green)"
-            : "1px solid var(--border)",
-          background: active ? "rgba(34,197,94,0.12)" : "transparent",
-          color: active ? "var(--green)" : "var(--text-secondary)",
+            ? "1px solid var(--color-leaf)"
+            : "1px solid var(--color-border)",
+          background: active ? "var(--color-surface-sage)" : "transparent",
+          color: active ? "var(--color-forest)" : "var(--color-text-muted)",
+          fontFamily: "inherit",
         }}
       >
         {item}

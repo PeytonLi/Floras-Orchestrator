@@ -11,6 +11,9 @@ export { SalesIntelStubAgent } from "./sales-intel-stub";
 export { ProjectAdvisorStubAgent } from "./project-advisor-stub";
 export { CO2EstimatorStubAgent } from "./co2-estimator-stub";
 export { DesignSystemStubAgent } from "./design-system-stub";
+export { InvoiceParserStubAgent } from "./invoice-parser-stub";
+export { CO2FromInvoiceStubAgent } from "./co2-from-invoice-stub";
+export { FlorasTransferStubAgent } from "./floras-transfer-stub";
 // External (remote) agent adapter
 export { ExternalHttpAgent } from "./external-agent";
 export type { ExternalAgentOptions } from "./external-agent";

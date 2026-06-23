@@ -11,6 +11,23 @@ import { IntakeFormSection, emptyIntakeForm } from "./components/IntakeForm";
 import { useSSE } from "./hooks/useSSE";
 import { DEMO_RUN, DEMO_LOGS } from "./demoData";
 
+const sectionLabel: React.CSSProperties = {
+  fontSize: "0.72rem",
+  fontWeight: 700,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+  color: "var(--color-text-muted)",
+  marginBottom: 12,
+};
+
+const card: React.CSSProperties = {
+  background: "var(--color-surface)",
+  border: "1px solid var(--color-border)",
+  borderRadius: 16,
+  padding: 24,
+  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+};
+
 export default function Dashboard() {
   const [currentRunId, setCurrentRunId] = useState<string | null>(null);
   const [initialRun, setInitialRun] = useState<PipelineRun | null>(null);
@@ -21,6 +38,10 @@ export default function Dashboard() {
   const [demoMode, setDemoMode] = useState(false);
   const [intake, setIntake] = useState<IntakeForm>(emptyIntakeForm());
   const [showIntake, setShowIntake] = useState(false);
+  const [pipelineMode, setPipelineMode] = useState<"discovery" | "transfer">(
+    "discovery",
+  );
+  const [scenario, setScenario] = useState<"b2b" | "self" | "b2c">("b2b");
 
   const {
     logs: sseLogs,
@@ -31,7 +52,6 @@ export default function Dashboard() {
     streamingAgentId,
   } = useSSE(currentRunId, initialRun);
 
-  // In demo mode, use pre-built demo logs; keep runId null so SSE won't connect
   const logs = demoMode ? DEMO_LOGS : sseLogs;
 
   const loadDemo = useCallback(() => {
@@ -46,9 +66,7 @@ export default function Dashboard() {
     setDemoMode(false);
   }, []);
 
-  const handleApproval = () => {
-    // Run state will update via SSE
-  };
+  const handleApproval = () => {};
 
   const startRun = useCallback(async () => {
     setStarting(true);
@@ -56,7 +74,7 @@ export default function Dashboard() {
       const res = await fetch("/api/runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, intake }),
+        body: JSON.stringify({ prompt, intake, mode: pipelineMode, scenario }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -71,389 +89,503 @@ export default function Dashboard() {
   }, [prompt, intake]);
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            marginBottom: 4,
-          }}
-        >
-          <div
+    <div style={{ minHeight: "100vh", background: "var(--color-bg)" }}>
+      {/* Top nav bar */}
+      <header
+        style={{
+          background:
+            "linear-gradient(135deg, var(--color-wallet-start), var(--color-wallet-end))",
+          padding: "0 48px",
+          height: 56,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background:
-                "linear-gradient(135deg, var(--accent), var(--green))",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 18,
-              fontWeight: 800,
+              fontSize: "0.95rem",
+              fontWeight: 300,
+              letterSpacing: "0.15em",
               color: "#fff",
             }}
           >
-            F
-          </div>
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>Floras Orchestrator</h1>
-          {connected && (
+            FLORAS
+          </span>
+          <span
+            style={{
+              fontSize: "0.72rem",
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.5)",
+              marginLeft: 12,
+              borderLeft: "1px solid rgba(255,255,255,0.25)",
+              paddingLeft: 12,
+            }}
+          >
+            Orchestrator
+          </span>
+        </div>
+        {connected && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                marginLeft: "auto",
-              }}
-            >
-              <div
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: "var(--green)",
-                }}
-              />
-              <span style={{ fontSize: 11, color: "var(--green)" }}>Live</span>
-            </div>
-          )}
-        </div>
-        <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          Agent orchestration for the Floras climate platform pipeline
-        </p>
-      </div>
-
-      {/* New Run Input */}
-      {!run && (
-        <div
-          style={{
-            background: "var(--bg-card)",
-            border: "1px solid var(--border)",
-            borderRadius: 12,
-            padding: 24,
-            marginBottom: 24,
-          }}
-        >
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-            Start New Pipeline Run
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <input
-              type="text"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe target leads or paste a customer brief..."
-              style={{
-                flex: 1,
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: "1px solid var(--border)",
-                background: "var(--bg)",
-                color: "var(--text)",
-                fontSize: 13,
-                outline: "none",
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "#a8d5b5",
               }}
             />
-            <button
-              onClick={startRun}
-              disabled={starting || !prompt.trim()}
-              style={{
-                padding: "10px 24px",
-                borderRadius: 8,
-                border: "none",
-                background: "var(--accent)",
-                color: "#fff",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: starting ? "not-allowed" : "pointer",
-                opacity: starting ? 0.6 : 1,
-                whiteSpace: "nowrap",
-              }}
+            <span
+              style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.7)" }}
             >
-              {starting ? "Starting..." : "Run Pipeline"}
-            </button>
+              Live
+            </span>
           </div>
+        )}
+      </header>
 
-          {/* Project preferences intake (Team 3) */}
-          <div style={{ marginTop: 12 }}>
-            <button
-              type="button"
-              onClick={() => setShowIntake((s) => !s)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "var(--accent)",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-                padding: 0,
-              }}
-            >
-              {showIntake ? "− Hide" : "+ Add"} project preferences (optional)
-            </button>
-            {showIntake && (
-              <div
-                style={{
-                  marginTop: 14,
-                  padding: 16,
-                  borderRadius: 10,
-                  border: "1px solid var(--border)",
-                  background: "var(--bg)",
-                }}
-              >
-                <IntakeFormSection value={intake} onChange={setIntake} />
+      {/* Page content */}
+      <main style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 24px" }}>
+        {/* Page title */}
+        <div style={{ marginBottom: 32 }}>
+          <p
+            style={{
+              fontSize: "0.875rem",
+              color: "var(--color-text-muted)",
+              lineHeight: 1.6,
+            }}
+          >
+            Agent orchestration for the Floras climate platform pipeline
+          </p>
+        </div>
+
+        {/* New Run Input */}
+        {!run && (
+          <div style={{ ...card, marginBottom: 24 }}>
+            <div style={sectionLabel}>New pipeline run</div>
+
+            {/* Mode selector */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              {(["discovery", "transfer"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setPipelineMode(mode)}
+                  style={{
+                    padding: "6px 16px",
+                    borderRadius: 6,
+                    border:
+                      pipelineMode === mode
+                        ? "1px solid var(--accent)"
+                        : "1px solid var(--border)",
+                    background:
+                      pipelineMode === mode
+                        ? "rgba(99,102,241,0.12)"
+                        : "transparent",
+                    color:
+                      pipelineMode === mode
+                        ? "var(--accent)"
+                        : "var(--text-muted)",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {mode === "discovery" ? "Lead Discovery" : "Invoice Transfer"}
+                </button>
+              ))}
+            </div>
+
+            {/* Scenario selector (transfer mode only) */}
+            {pipelineMode === "transfer" && (
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                {(["b2b", "self", "b2c"] as const).map((s) => {
+                  const labels = {
+                    b2b: "B2B (Peruvian Oil)",
+                    self: "Self-Service (Boggio)",
+                    b2c: "B2C (Danone)",
+                  };
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setScenario(s)}
+                      style={{
+                        padding: "4px 12px",
+                        borderRadius: 6,
+                        border:
+                          scenario === s
+                            ? "1px solid var(--green)"
+                            : "1px solid var(--border)",
+                        background:
+                          scenario === s
+                            ? "rgba(34,197,94,0.08)"
+                            : "transparent",
+                        color:
+                          scenario === s ? "var(--green)" : "var(--text-muted)",
+                        fontSize: 11,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {labels[s]}
+                    </button>
+                  );
+                })}
               </div>
             )}
-          </div>
 
-          <div
-            style={{
-              marginTop: 12,
-              paddingTop: 12,
-              borderTop: "1px solid var(--border)",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              Or explore a pre-built demo:
-            </span>
-            <button
-              onClick={loadDemo}
-              style={{
-                padding: "6px 16px",
-                borderRadius: 6,
-                border: "1px solid var(--green)",
-                background: "rgba(34,197,94,0.08)",
-                color: "var(--green)",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Load Demo
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Active Run Dashboard */}
-      {run && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* Run ID + Status */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <span
+            <div style={{ display: "flex", gap: 10 }}>
+              <input
+                type="text"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder={
+                  pipelineMode === "transfer"
+                    ? "Supplier name or describe the invoice context..."
+                    : "Describe target leads or paste a customer brief..."
+                }
                 style={{
-                  fontSize: 12,
-                  color: "var(--text-muted)",
-                  fontFamily: "var(--mono)",
+                  flex: 1,
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid var(--color-border)",
+                  background: "var(--color-bg)",
+                  color: "var(--color-text)",
+                  fontSize: "0.875rem",
+                  outline: "none",
+                  fontFamily: "inherit",
+                }}
+              />
+              <button
+                onClick={startRun}
+                disabled={starting || !prompt.trim()}
+                style={{
+                  padding: "10px 24px",
+                  borderRadius: 8,
+                  border: "none",
+                  background:
+                    starting || !prompt.trim()
+                      ? "var(--color-text-muted)"
+                      : "var(--color-leaf)",
+                  color: "#fff",
+                  fontSize: "0.875rem",
+                  fontWeight: 700,
+                  cursor: starting ? "not-allowed" : "pointer",
+                  whiteSpace: "nowrap",
+                  fontFamily: "inherit",
+                  transition: "background 0.2s",
                 }}
               >
-                {run.id}
-              </span>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: "var(--text-secondary)",
-                  marginTop: 2,
-                }}
-              >
-                {run.input.prompt}
-              </div>
+                {starting ? "Starting..." : "Run pipeline"}
+              </button>
             </div>
+
+            {/* Project preferences intake */}
+            <div style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                onClick={() => setShowIntake((s) => !s)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--color-leaf)",
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  padding: 0,
+                  fontFamily: "inherit",
+                }}
+              >
+                {showIntake ? "− Hide" : "+ Add"} project preferences (optional)
+              </button>
+              {showIntake && (
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: 16,
+                    borderRadius: 10,
+                    border: "1px solid var(--color-border-soft)",
+                    background: "var(--color-surface-sage)",
+                  }}
+                >
+                  <IntakeFormSection value={intake} onChange={setIntake} />
+                </div>
+              )}
+            </div>
+
             <div
               style={{
-                padding: "4px 12px",
-                borderRadius: 6,
-                fontSize: 12,
-                fontWeight: 600,
-                background:
-                  run.stage === "complete"
-                    ? "rgba(34,197,94,0.12)"
-                    : run.stage === "error"
-                      ? "rgba(239,68,68,0.12)"
-                      : "rgba(99,102,241,0.12)",
-                color:
-                  run.stage === "complete"
-                    ? "var(--green)"
-                    : run.stage === "error"
-                      ? "var(--red)"
-                      : "var(--accent)",
+                marginTop: 16,
+                paddingTop: 16,
+                borderTop: "1px solid var(--color-border-soft)",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
               }}
             >
-              {run.stage.replace(/_/g, " ").toUpperCase()}
+              <span
+                style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}
+              >
+                Or explore a pre-built demo:
+              </span>
+              <button
+                onClick={loadDemo}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: 6,
+                  border: "1px solid var(--color-leaf)",
+                  background: "transparent",
+                  color: "var(--color-leaf)",
+                  fontSize: "0.8rem",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Load demo
+              </button>
             </div>
           </div>
+        )}
 
-          {/* Pipeline Progress */}
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-              Pipeline Progress
+        {/* Active Run Dashboard */}
+        {run && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Run ID + Status */}
+            <div
+              style={{
+                ...card,
+                padding: 16,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "var(--color-text-muted)",
+                    fontFamily: "var(--mono)",
+                    marginBottom: 2,
+                  }}
+                >
+                  {run.id}
+                </div>
+                <div
+                  style={{ fontSize: "0.875rem", color: "var(--color-text)" }}
+                >
+                  {run.input.prompt}
+                </div>
+              </div>
+              <div
+                style={{
+                  padding: "4px 12px",
+                  borderRadius: 6,
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  background:
+                    run.stage === "complete"
+                      ? "var(--color-surface-sage)"
+                      : run.stage === "error"
+                        ? "rgba(184,50,50,0.08)"
+                        : "rgba(74,124,89,0.1)",
+                  color:
+                    run.stage === "complete"
+                      ? "var(--color-forest)"
+                      : run.stage === "error"
+                        ? "var(--red)"
+                        : "var(--color-leaf)",
+                  border: `1px solid ${
+                    run.stage === "complete"
+                      ? "var(--color-border)"
+                      : run.stage === "error"
+                        ? "rgba(184,50,50,0.25)"
+                        : "var(--color-leaf)"
+                  }`,
+                }}
+              >
+                {run.stage.replace(/_/g, " ")}
+              </div>
             </div>
-            <PipelineView currentStage={run.stage} />
-          </div>
 
-          {/* Human Gate */}
-          {run.stage === "awaiting_approval" && (
-            <ApprovalDialog
-              run={run}
-              gateSummary={gateSummary}
-              onDecision={handleApproval}
-            />
-          )}
-
-          {/* Agent Status */}
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-              Agent Status
+            {/* Pipeline Progress */}
+            <div style={card}>
+              <div style={sectionLabel}>Pipeline progress</div>
+              <PipelineView currentStage={run.stage} />
             </div>
-            <AgentCards agents={run.agents} />
-          </div>
 
-          {/* Streaming LLM Output */}
-          {streamContent && (
-            <div>
+            {/* Human Gate */}
+            {run.stage === "awaiting_approval" && (
+              <ApprovalDialog
+                run={run}
+                gateSummary={gateSummary}
+                onDecision={handleApproval}
+              />
+            )}
+
+            {/* Agent Status */}
+            <div style={card}>
+              <div style={sectionLabel}>Agent status</div>
+              <AgentCards agents={run.agents} />
+            </div>
+
+            {/* Streaming LLM Output */}
+            {streamContent && (
+              <div style={card}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 12,
+                  }}
+                >
+                  <div style={sectionLabel}>Live agent output</div>
+                  {streamingAgentId && (
+                    <>
+                      <div
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          background: "var(--color-leaf)",
+                          animation: "pulse 1.5s infinite",
+                          marginLeft: 4,
+                          marginTop: -10,
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "var(--color-leaf)",
+                          marginTop: -10,
+                        }}
+                      >
+                        {streamingAgentId}
+                      </span>
+                    </>
+                  )}
+                </div>
+                <div
+                  style={{
+                    background: "#1a2416",
+                    border: `1px solid ${streamingAgentId ? "var(--color-leaf)" : "var(--color-border)"}`,
+                    borderRadius: 8,
+                    padding: 12,
+                    maxHeight: 300,
+                    overflowY: "auto",
+                    fontFamily: "var(--mono)",
+                    fontSize: "0.7rem",
+                    lineHeight: 1.7,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    color: "#a8d5b5",
+                    transition: "border-color 0.3s",
+                  }}
+                >
+                  {streamContent}
+                  {streamingAgentId && (
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 8,
+                        height: 13,
+                        background: "var(--color-leaf)",
+                        marginLeft: 2,
+                        animation: "pulse 1s step-end infinite",
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Log Stream */}
+            <div style={card}>
               <div
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 8,
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  marginBottom: 12,
                 }}
               >
-                <div style={{ fontSize: 13, fontWeight: 600 }}>
-                  Live Agent Output
+                <div style={sectionLabel}>Activity log</div>
+                <div
+                  style={{
+                    fontSize: "0.75rem",
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  {logs.length} entries
                 </div>
-                {streamingAgentId && (
-                  <>
-                    <div
-                      style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: "50%",
-                        background: "var(--accent)",
-                        animation: "pulse 1.5s infinite",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "var(--accent)",
-                      }}
-                    >
-                      {streamingAgentId}
-                    </span>
-                  </>
-                )}
               </div>
+              <LogStream logs={logs} />
+            </div>
+
+            {/* Results */}
+            {(run.stage === "complete" ||
+              run.stage === "presenting" ||
+              run.stage === "recommending") && (
+              <div style={card}>
+                <div style={sectionLabel}>Pipeline results</div>
+                <ResultsPanel run={run} />
+              </div>
+            )}
+
+            {/* Demo indicator */}
+            {demoMode && (
               <div
                 style={{
-                  background: "#08080d",
-                  border: `1px solid ${streamingAgentId ? "var(--accent)" : "var(--border)"}`,
+                  padding: "10px 16px",
                   borderRadius: 8,
-                  padding: 12,
-                  maxHeight: 300,
-                  overflowY: "auto",
-                  fontFamily: "var(--mono)",
-                  fontSize: 11,
-                  lineHeight: 1.7,
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  color: "var(--text-secondary)",
-                  transition: "border-color 0.3s",
+                  background: "var(--color-surface-sage)",
+                  border: "1px solid var(--color-border)",
+                  fontSize: "0.8rem",
+                  color: "var(--color-text-muted)",
                 }}
               >
-                {streamContent}
-                {streamingAgentId && (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 8,
-                      height: 14,
-                      background: "var(--accent)",
-                      marginLeft: 2,
-                      animation: "pulse 1s step-end infinite",
-                    }}
-                  />
-                )}
+                Demo mode — showing a completed pipeline run with sample data
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Log Stream */}
-          <div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: 8,
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 600 }}>Activity Log</div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                {logs.length} entries
+            {/* New Run button when complete */}
+            {(run.stage === "complete" || run.stage === "error") && (
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <button
+                  onClick={resetAll}
+                  style={{
+                    padding: "10px 32px",
+                    borderRadius: 8,
+                    border: "1px solid var(--color-leaf)",
+                    background: "transparent",
+                    color: "var(--color-leaf)",
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Start new run
+                </button>
               </div>
-            </div>
-            <LogStream logs={logs} />
+            )}
           </div>
+        )}
+      </main>
 
-          {/* Results */}
-          {(run.stage === "complete" ||
-            run.stage === "presenting" ||
-            run.stage === "recommending") && <ResultsPanel run={run} />}
-
-          {/* Demo indicator */}
-          {demoMode && (
-            <div
-              style={{
-                padding: "8px 14px",
-                borderRadius: 8,
-                background: "rgba(34,197,94,0.08)",
-                border: "1px solid var(--green)",
-                fontSize: 12,
-                color: "var(--green)",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <span>
-                Demo Mode — showing a completed pipeline run with sample data
-              </span>
-            </div>
-          )}
-
-          {/* New Run button when complete */}
-          {(run.stage === "complete" || run.stage === "error") && (
-            <button
-              onClick={resetAll}
-              style={{
-                padding: "10px 24px",
-                borderRadius: 8,
-                border: "1px solid var(--border)",
-                background: "transparent",
-                color: "var(--text)",
-                fontSize: 13,
-                cursor: "pointer",
-                alignSelf: "center",
-              }}
-            >
-              Start New Run
-            </button>
-          )}
-        </div>
-      )}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+      `}</style>
     </div>
   );
 }

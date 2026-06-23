@@ -6,6 +6,9 @@ import type {
   CO2Estimate,
   ProjectRecommendation,
   Artifact,
+  InvoiceData,
+  TransferAmount,
+  LedgerEvent,
 } from "@floras/shared";
 import type { AgentMeta } from "./registry";
 
@@ -126,6 +129,50 @@ export const DEFAULT_PIPELINE: PipelineStep[] = [
     stage: "presenting",
     apply: (ctx, data) => {
       ctx.artifacts = (data as { artifacts: Artifact[] }).artifacts;
+    },
+  },
+];
+
+/** Transfer pipeline stages for invoice-based Floras transfers */
+export const TRANSFER_PIPELINE: PipelineStep[] = [
+  {
+    id: "parse-invoice",
+    agentId: "invoice-parser",
+    stage: "parsing",
+    apply: (ctx, data) => {
+      const d = data as { invoice: InvoiceData };
+      ctx.invoice = d.invoice;
+    },
+  },
+  {
+    id: "calculate-floras",
+    agentId: "co2-from-invoice",
+    stage: "calculating",
+    apply: (ctx, data) => {
+      const d = data as { transferAmount: TransferAmount };
+      ctx.transferAmount = d.transferAmount;
+    },
+    gate: {
+      stage: "awaiting_approval",
+      summarize: (ctx) => {
+        if (!ctx.transferAmount)
+          return "Review calculated Floras transfer amount";
+        return (
+          `Transfer ${ctx.transferAmount.florasCount} Floras ` +
+          `(${ctx.transferAmount.co2Kg} kg CO2) — ` +
+          ctx.transferAmount.calculationBreakdown
+        );
+      },
+      rejectionReason: "Human reviewer rejected the calculated transfer amount",
+    },
+  },
+  {
+    id: "execute-transfer",
+    agentId: "floras-transfer",
+    stage: "transferring",
+    apply: (ctx, data) => {
+      const d = data as { ledgerEvent: LedgerEvent };
+      ctx.ledgerEvents = [...(ctx.ledgerEvents ?? []), d.ledgerEvent];
     },
   },
 ];

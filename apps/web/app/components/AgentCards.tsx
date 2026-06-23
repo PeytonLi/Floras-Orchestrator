@@ -6,26 +6,33 @@ interface AgentCardsProps {
   agents: Record<string, AgentState>;
 }
 
-const AGENT_META: Record<string, { name: string; icon: string; team: string }> = {
-  "sales-intel": { name: "Sales Intelligence", icon: "S", team: "Team 2" },
-  "project-advisor": { name: "Project Advisor", icon: "P", team: "Team 3" },
-  "co2-estimator": { name: "CO2 Estimator", icon: "C", team: "Team 4" },
-  "design-system": { name: "Design System", icon: "D", team: "Team 1" },
+const AGENT_META: Record<string, { name: string; initial: string; team: string }> = {
+  "sales-intel": { name: "Sales Intelligence", initial: "S", team: "Team 2" },
+  "project-advisor": { name: "Project Advisor", initial: "P", team: "Team 3" },
+  "co2-estimator": { name: "CO₂ Estimator", initial: "C", team: "Team 4" },
+  "design-system": { name: "Design System", initial: "D", team: "Team 1" },
 };
 
 function statusColor(status: AgentStatus): string {
   switch (status) {
-    case "running": return "var(--accent)";
-    case "done": return "var(--green)";
-    case "error": return "var(--red)";
-    case "blocked": return "var(--yellow)";
-    default: return "var(--text-muted)";
+    case "running":
+    case "retrying":
+      return "var(--color-leaf)";
+    case "done":
+      return "var(--color-forest)";
+    case "error":
+      return "var(--red)";
+    case "blocked":
+      return "var(--yellow)";
+    default:
+      return "var(--color-border)";
   }
 }
 
 function statusLabel(status: AgentStatus): string {
   switch (status) {
     case "running": return "Running";
+    case "retrying": return "Retrying";
     case "done": return "Complete";
     case "error": return "Error";
     case "blocked": return "Blocked";
@@ -42,16 +49,17 @@ export function AgentCards({ agents }: AgentCardsProps) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
       {Object.entries(agents).map(([id, state]) => {
-        const meta = AGENT_META[id] ?? { name: id, icon: "?", team: "" };
+        const meta = AGENT_META[id] ?? { name: id, initial: "?", team: "" };
         const color = statusColor(state.status);
+        const isActive = state.status === "running" || state.status === "retrying";
 
         return (
           <div
             key={id}
             style={{
-              background: "var(--bg-card)",
-              border: `1px solid ${state.status === "running" ? color : "var(--border)"}`,
-              borderRadius: 10,
+              background: "var(--color-surface)",
+              border: `1px solid ${isActive ? "var(--color-leaf)" : "var(--color-border)"}`,
+              borderRadius: 12,
               padding: 16,
               transition: "border-color 0.3s ease",
             }}
@@ -65,41 +73,64 @@ export function AgentCards({ agents }: AgentCardsProps) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 16,
+                  fontSize: "0.9rem",
                   fontWeight: 700,
-                  background: `${color}22`,
+                  background:
+                    state.status === "done"
+                      ? "var(--color-surface-sage)"
+                      : isActive
+                      ? "rgba(74,124,89,0.12)"
+                      : "var(--color-bg)",
                   color,
+                  border: "1px solid var(--color-border-soft)",
                 }}
               >
-                {meta.icon}
+                {meta.initial}
               </div>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{meta.name}</div>
-                <div style={{ fontSize: 10, color: "var(--text-muted)" }}>{meta.team}</div>
+                <div style={{ fontSize: "0.875rem", fontWeight: 600, color: "var(--color-text)" }}>
+                  {meta.name}
+                </div>
+                <div
+                  style={{
+                    fontSize: "0.65rem",
+                    color: "var(--color-brand-text)",
+                    fontWeight: 600,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {meta.team}
+                </div>
               </div>
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
               <div
                 style={{
-                  width: 8,
-                  height: 8,
+                  width: 7,
+                  height: 7,
                   borderRadius: "50%",
                   background: color,
-                  boxShadow: state.status === "running" ? `0 0 6px ${color}` : "none",
-                  animation: state.status === "running" ? "pulse 2s infinite" : "none",
+                  boxShadow: isActive ? `0 0 6px ${color}` : "none",
+                  animation: isActive ? "pulse 2s infinite" : "none",
+                  flexShrink: 0,
                 }}
               />
-              <span style={{ fontSize: 12, color }}>{statusLabel(state.status)}</span>
+              <span style={{ fontSize: "0.8rem", color, fontWeight: 500 }}>
+                {statusLabel(state.status)}
+              </span>
             </div>
 
-            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-              {state.startedAt && <div>Started: {formatTime(state.startedAt)}</div>}
-              {state.completedAt && <div>Done: {formatTime(state.completedAt)}</div>}
+            <div style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
+              {state.startedAt && (
+                <div>Started: {formatTime(state.startedAt)}</div>
+              )}
+              {state.completedAt && (
+                <div>Done: {formatTime(state.completedAt)}</div>
+              )}
               {state.error && (
-                <div style={{ color: "var(--red)", marginTop: 4, fontSize: 11 }}>
-                  {state.error}
-                </div>
+                <div style={{ color: "var(--red)", marginTop: 4 }}>{state.error}</div>
               )}
             </div>
           </div>
